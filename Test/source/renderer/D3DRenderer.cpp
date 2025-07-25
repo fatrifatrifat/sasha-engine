@@ -225,13 +225,9 @@ void D3DRenderer::BuildInputLayout()
 {
 	std::filesystem::path shaderPath1 = std::filesystem::current_path() / "shaders" / "defaultVS.cso";
 	std::filesystem::path shaderPath2 = std::filesystem::current_path() / "shaders" / "defaultPS.cso";
-	HRESULT hr = S_OK;
 
 	ThrowIfFailed(D3DReadFileToBlob(shaderPath1.c_str(), &_vertexShader));
 	ThrowIfFailed(D3DReadFileToBlob(shaderPath2.c_str(), &_pixelShader));
-
-	//_vertexShader = d3dUtil::CompileShader(L"Shaders\\color.hlsl", nullptr, "VS", "vs_5_0");
-	//_pixelShader = d3dUtil::CompileShader(L"Shaders\\color.hlsl", nullptr, "PS", "ps_5_0");
 
 	_inputLayoutDesc =
 	{

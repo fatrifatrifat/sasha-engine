@@ -69,7 +69,7 @@ namespace d3dUtil
 
 		void CopyData(UINT elementCount, const T& data)
 		{
-			memcpy(&_mappedData, &data, elementCount * sizeof(T));
+			memcpy(&_mappedData[elementCount * _byteSize], &data, sizeof(T));
 		}
 
 	private:
