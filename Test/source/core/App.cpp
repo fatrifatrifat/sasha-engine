@@ -1,0 +1,154 @@
+#include "App.h"
+
+namespace
+{
+	App* app = 0;
+}
+
+LRESULT CALLBACK MainWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	return app->WndProc(hWnd, msg, wParam, lParam);
+}
+
+
+App::App(HINSTANCE hInstance) noexcept
+	: _hInstance(hInstance)
+{
+	app = this;
+}
+
+App::~App()
+{
+}
+
+void App::AppInit()
+{
+	// Creating and setting up the window class
+	WNDCLASS wc{};
+	// Extras that we dont need
+	wc.cbClsExtra = 0;
+	wc.cbWndExtra = 0;
+	// Setting up the function that will handle the messages sent to the wnd
+	wc.lpfnWndProc = MainWndProc;
+	// Default Arrow
+	wc.hCursor = LoadCursor(0, IDC_ARROW);
+	// Name of the wnd class that we will register it as
+	wc.lpszClassName = L"CLASS";
+	// Background Color
+	wc.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
+	// Default Icon
+	wc.hIcon = LoadIcon(0, IDI_APPLICATION);
+	// No menu
+	wc.lpszMenuName = 0;
+	// Set up the instance of our application to the wnd class
+	wc.hInstance = _hInstance;
+	// It will redraw the wnd H(orizontally) and V(ertically)
+	wc.style = CS_HREDRAW | CS_VREDRAW;
+
+	// Registers the wnd class in order to create the window app
+	if (!RegisterClass(&wc))
+		ThrowAppException(L"RegisterClass Failed Miserably");
+
+	// Setting up the wnd rectangle
+	RECT R = { 0, 0, SCREEN_HEIGHT, SCREEN_WIDTH };
+	AdjustWindowRect(&R, WS_OVERLAPPEDWINDOW, false);
+	int width = R.right - R.left;
+	int height = R.bottom - R.top;
+
+	// Creating the window
+	_wndHandle = CreateWindow(
+		// Name of the wnd class
+		L"CLASS",
+		// Name at the tab bar 
+		L"Rifat",
+		WS_OVERLAPPEDWINDOW,
+		CW_USEDEFAULT,
+		CW_USEDEFAULT,
+		width, height,
+		0, 0,
+		_hInstance,
+		0
+	);
+
+	// Handles if the window isnt created
+	if (!_wndHandle)
+		ThrowAppException(L"CreateWindow Failed Miserably");
+
+	ShowWindow(_wndHandle, SW_SHOW);
+	UpdateWindow(_wndHandle);
+	
+	d3dApp = std::make_unique<D3DRenderer>(_wndHandle, SCREEN_WIDTH, SCREEN_HEIGHT);
+	d3dApp->d3dInit();
+}
+
+void App::Run()
+{
+	MSG msg = { 0 };
+
+	while (msg.message != WM_QUIT)
+	{
+		if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE))
+		{
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+		else
+		{
+			_timer.Tick();
+			if (_isPaused)
+				Sleep(100);
+			else
+			{
+				CalculateFPS();
+				// Update
+				d3dApp->Update(_timer.DeltaTime());
+				// Draw
+				d3dApp->RenderFrame(_timer.DeltaTime());
+			}
+		}
+	}
+}
+
+LRESULT App::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	switch (msg)
+	{
+	case WM_KEYDOWN:
+		if (wParam == VK_ESCAPE)
+			PostQuitMessage(0);
+		break;
+	case WM_ACTIVATE:
+		if (LOWORD(wParam) == WA_INACTIVE)
+		{
+			_isPaused = true;
+			_timer.Stop();
+		}
+		else
+		{
+			_isPaused = false;
+			_timer.Start();
+		}
+		break;
+	}
+
+	return DefWindowProc(hWnd, msg, wParam, lParam);
+}
+
+void App::CalculateFPS() const noexcept
+{
+	static int frameCount = 0;
+	static float timeElapsed = 0.f;
+	frameCount++;
+
+	if (_timer.TotalTime() - timeElapsed >= 1.f)
+	{
+		float fps = (float)frameCount;
+		float mspf = 1000.f / fps;
+
+		std::wstring windowName = L"fps: " + std::to_wstring(fps) + L", ms: " + std::to_wstring(mspf);
+		SetWindowText(_wndHandle, windowName.c_str());
+
+		frameCount = 0;
+		timeElapsed += 1.f;
+	}
+}
