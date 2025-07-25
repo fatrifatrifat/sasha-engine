@@ -16,36 +16,70 @@ private:
 		DirectX::XMFLOAT4X4 WorldViewProj = d3dUtil::Identity4x4();
 	};
 
-	struct Mesh
+	struct SubmeshGeometry
 	{
-		template<typename VertexContainer, typename IndexContainer>
-		Mesh(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, const VertexContainer& vertices, const IndexContainer& indices)
+		UINT IndexCount = 0;
+		UINT StartIndexLocation = 0;
+		INT BaseVertexLocation = 0;
+
+		// Bounding box of the geometry defined by this submesh. 
+		// This is used in later chapters of the book.
+		DirectX::BoundingBox Bounds;
+	};
+
+	struct MeshGeometry
+	{
+		// Give it a name so we can look it up by name.
+		std::string Name;
+
+		// System memory copies.  Use Blobs because the vertex/index format can be generic.
+		// It is up to the client to cast appropriately.  
+		Microsoft::WRL::ComPtr<ID3DBlob> VertexBufferCPU = nullptr;
+		Microsoft::WRL::ComPtr<ID3DBlob> IndexBufferCPU = nullptr;
+
+		Microsoft::WRL::ComPtr<ID3D12Resource> VertexBufferGPU = nullptr;
+		Microsoft::WRL::ComPtr<ID3D12Resource> IndexBufferGPU = nullptr;
+
+		Microsoft::WRL::ComPtr<ID3D12Resource> VertexBufferUploader = nullptr;
+		Microsoft::WRL::ComPtr<ID3D12Resource> IndexBufferUploader = nullptr;
+
+		// Data about the buffers.
+		UINT VertexByteStride = 0;
+		UINT VertexBufferByteSize = 0;
+		DXGI_FORMAT IndexFormat = DXGI_FORMAT_R16_UINT;
+		UINT IndexBufferByteSize = 0;
+
+		// A MeshGeometry may store multiple geometries in one vertex/index buffer.
+		// Use this container to define the Submesh geometries so we can draw
+		// the Submeshes individually.
+		std::unordered_map<std::string, SubmeshGeometry> DrawArgs;
+
+		D3D12_VERTEX_BUFFER_VIEW VertexBufferView()const
 		{
-			const UINT vertexBufferSize = static_cast<UINT>(vertices.size() * sizeof(vertices[0]));
-			const UINT indexBufferSize = static_cast<UINT>(indices.size() * sizeof(indices[0]));
+			D3D12_VERTEX_BUFFER_VIEW vbv;
+			vbv.BufferLocation = VertexBufferGPU->GetGPUVirtualAddress();
+			vbv.StrideInBytes = VertexByteStride;
+			vbv.SizeInBytes = VertexBufferByteSize;
 
-			_vertexGPU = d3dUtil::CreateBuffer(device, cmdList, _vertexUpload, vertices.data(), vertexBufferSize);
-			_indexGPU = d3dUtil::CreateBuffer(device, cmdList, _indexUpload, indices.data(), indexBufferSize);
-
-			_vertexBufferView.BufferLocation = _vertexGPU->GetGPUVirtualAddress();
-			_vertexBufferView.SizeInBytes = vertexBufferSize;
-			_vertexBufferView.StrideInBytes = sizeof(vertices[0]);
-
-			_indexBufferView.BufferLocation = _indexGPU->GetGPUVirtualAddress();
-			_indexBufferView.SizeInBytes = indexBufferSize;
-			_indexBufferView.Format = DXGI_FORMAT_R16_UINT;
+			return vbv;
 		}
 
-		D3D12_VERTEX_BUFFER_VIEW _vertexBufferView{};
-		D3D12_INDEX_BUFFER_VIEW _indexBufferView{};
+		D3D12_INDEX_BUFFER_VIEW IndexBufferView()const
+		{
+			D3D12_INDEX_BUFFER_VIEW ibv;
+			ibv.BufferLocation = IndexBufferGPU->GetGPUVirtualAddress();
+			ibv.Format = IndexFormat;
+			ibv.SizeInBytes = IndexBufferByteSize;
 
+			return ibv;
+		}
 
-	private:
-		ComPtr<ID3D12Resource> _vertexUpload;
-		ComPtr<ID3D12Resource> _indexUpload;
-
-		ComPtr<ID3D12Resource> _vertexGPU;
-		ComPtr<ID3D12Resource> _indexGPU;
+		// We can free this memory after we finish upload to the GPU.
+		void DisposeUploaders()
+		{
+			VertexBufferUploader = nullptr;
+			IndexBufferUploader = nullptr;
+		}
 	};
 
 public:
@@ -128,7 +162,7 @@ private:
 	ComPtr<ID3DBlob> _pixelShader;
 	std::vector<D3D12_INPUT_ELEMENT_DESC> _inputLayoutDesc{};
 
-	std::vector<Mesh> _objects;
+	std::unique_ptr<MeshGeometry> _object;
 	
 	std::unique_ptr<d3dUtil::UploadBuffer<ConstantBuffer>> _constantBuffer;
 	ComPtr<ID3D12DescriptorHeap> _cbvHeap;

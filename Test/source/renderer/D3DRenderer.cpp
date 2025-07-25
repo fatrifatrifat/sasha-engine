@@ -21,7 +21,7 @@ void D3DRenderer::d3dInit()
 	CreateDescriptorHeaps();
 	OnResize();
 
-	_cmdList->Reset(_cmdAlloc.Get(), nullptr);
+	ThrowIfFailed(_cmdList->Reset(_cmdAlloc.Get(), nullptr));
 
 	BuildCbvDescriptorHeap();
 	BuildConstantBuffers();
@@ -194,7 +194,7 @@ void D3DRenderer::CreateDSV()
 		&heapProperties,
 		D3D12_HEAP_FLAG_NONE,
 		&resourceDesc,
-		D3D12_RESOURCE_STATE_DEPTH_WRITE, 
+		D3D12_RESOURCE_STATE_COMMON,
 		&clearVal,
 		IID_PPV_ARGS(_depthStencilBuffer.GetAddressOf())
 	));
@@ -205,6 +205,8 @@ void D3DRenderer::CreateDSV()
 	dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 	_device->CreateDepthStencilView(_depthStencilBuffer.Get(), &dsvDesc, GetDSView());
+
+	ChangeResourceState(_depthStencilBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
 	_vp.MaxDepth = 1.f;
 	_vp.MinDepth = 0.f;
@@ -223,8 +225,13 @@ void D3DRenderer::BuildInputLayout()
 {
 	std::filesystem::path shaderPath1 = std::filesystem::current_path() / "shaders" / "defaultVS.cso";
 	std::filesystem::path shaderPath2 = std::filesystem::current_path() / "shaders" / "defaultPS.cso";
+	HRESULT hr = S_OK;
+
 	ThrowIfFailed(D3DReadFileToBlob(shaderPath1.c_str(), &_vertexShader));
 	ThrowIfFailed(D3DReadFileToBlob(shaderPath2.c_str(), &_pixelShader));
+
+	//_vertexShader = d3dUtil::CompileShader(L"Shaders\\color.hlsl", nullptr, "VS", "vs_5_0");
+	//_pixelShader = d3dUtil::CompileShader(L"Shaders\\color.hlsl", nullptr, "PS", "ps_5_0");
 
 	_inputLayoutDesc =
 	{
@@ -249,17 +256,44 @@ void D3DRenderer::BuildGeometry()
 		0, 1, 2,
 	};
 
-	Mesh triangle(_device.Get(), _cmdList.Get(), vertices, indices);
-	_objects.push_back(std::move(triangle));
+	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
+	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
+
+	_object = std::make_unique<MeshGeometry>();
+	_object->Name = "boxGeo";
+
+	ThrowIfFailed(D3DCreateBlob(vbByteSize, &_object->VertexBufferCPU));
+	CopyMemory(_object->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
+
+	ThrowIfFailed(D3DCreateBlob(ibByteSize, &_object->IndexBufferCPU));
+	CopyMemory(_object->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
+
+	_object->VertexBufferGPU = d3dUtil::CreateBuffer(_device.Get(),
+		_cmdList.Get(), _object->VertexBufferUploader, vertices.data(), vbByteSize);
+
+	_object->IndexBufferGPU = d3dUtil::CreateBuffer(_device.Get(),
+		_cmdList.Get(), _object->IndexBufferUploader, indices.data(), ibByteSize);
+
+	_object->VertexByteStride = sizeof(Vertex);
+	_object->VertexBufferByteSize = vbByteSize;
+	_object->IndexFormat = DXGI_FORMAT_R16_UINT;
+	_object->IndexBufferByteSize = ibByteSize;
+
+	SubmeshGeometry submesh;
+	submesh.IndexCount = (UINT)indices.size();
+	submesh.StartIndexLocation = 0;
+	submesh.BaseVertexLocation = 0;
+
+	_object->DrawArgs["box"] = submesh;
 }
 
 void D3DRenderer::BuildCbvDescriptorHeap()
 {
 	D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc{};
-	cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	cbvHeapDesc.NodeMask = 0;
 	cbvHeapDesc.NumDescriptors = 1;
 	cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	cbvHeapDesc.NodeMask = 0;
 
 	ThrowIfFailed(_device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&_cbvHeap)));
 }
@@ -291,9 +325,23 @@ void D3DRenderer::BuildRootSignature()
 
 	ComPtr<ID3DBlob> serializedRootSig = nullptr;
 	ComPtr<ID3DBlob> errorBlob = nullptr;
-	HRESULT hr = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1, serializedRootSig.GetAddressOf(), errorBlob.GetAddressOf());
+	HRESULT hr = D3D12SerializeRootSignature(
+		&rootSigDesc,
+		D3D_ROOT_SIGNATURE_VERSION_1,
+		serializedRootSig.GetAddressOf(),
+		errorBlob.GetAddressOf()
+	);
+
+	if (errorBlob)
+		::OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+	ThrowIfFailed(hr);
 	
-	ThrowIfFailed(_device->CreateRootSignature(0, serializedRootSig->GetBufferPointer(), serializedRootSig->GetBufferSize(), IID_PPV_ARGS(&_rootSignature)));
+	ThrowIfFailed(_device->CreateRootSignature(
+		0,
+		serializedRootSig->GetBufferPointer(),
+		serializedRootSig->GetBufferSize(),
+		IID_PPV_ARGS(&_rootSignature)
+	));
 }
 
 void D3DRenderer::BuildPSO()
@@ -310,8 +358,8 @@ void D3DRenderer::BuildPSO()
 		_vertexShader->GetBufferSize()
 	};
 	psoDesc.PS = {
-	reinterpret_cast<BYTE*>(_pixelShader->GetBufferPointer()),
-	_pixelShader->GetBufferSize()
+		reinterpret_cast<BYTE*>(_pixelShader->GetBufferPointer()),
+		_pixelShader->GetBufferSize()
 	};
 	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
@@ -324,7 +372,7 @@ void D3DRenderer::BuildPSO()
 	psoDesc.SampleDesc.Quality = 0;
 	psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 
-	_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&_pso));
+	ThrowIfFailed(_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&_pso)));
 }
 
 void D3DRenderer::FlushQueue()
@@ -431,15 +479,16 @@ void D3DRenderer::DrawFrame()
 
 	_cmdList->SetGraphicsRootSignature(_rootSignature.Get());
 
-	auto& obj = _objects[0];
-	_cmdList->IASetVertexBuffers(0, 1, &obj._vertexBufferView);
-	_cmdList->IASetIndexBuffer(&obj._indexBufferView);
+	auto vbv = _object->VertexBufferView();
+	auto ibv = _object->IndexBufferView();
+	_cmdList->IASetVertexBuffers(0, 1, &vbv);
+	_cmdList->IASetIndexBuffer(&ibv);
 	_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	_cmdList->SetGraphicsRootDescriptorTable(0, _cbvHeap->GetGPUDescriptorHandleForHeapStart());
 	//_cmdList->SetPipelineState(_pso.Get());
 
-	_cmdList->DrawIndexedInstanced(3u, 1, 0u, 0u, 0u);
+	_cmdList->DrawIndexedInstanced(_object->DrawArgs["box"].IndexCount, 1u, 0u, 0u, 0u);
 }
 
 void D3DRenderer::EndFrame()

@@ -19,7 +19,7 @@ namespace d3dUtil
 		ID3D12GraphicsCommandList* cmdList,
 		Microsoft::WRL::ComPtr<ID3D12Resource>& uploadBuffer,
 		const void* data,
-		size_t byteSize);
+		UINT64 byteSize);
 
 	template<typename T>
 	class UploadBuffer
@@ -78,5 +78,10 @@ namespace d3dUtil
 		UINT _byteSize = 0u;
 		bool _isConstantBuffer = false;
 	};
-}
 
+	Microsoft::WRL::ComPtr<ID3DBlob> CompileShader(
+		const std::wstring& filename,
+		const D3D_SHADER_MACRO* defines,
+		const std::string& entrypoint,
+		const std::string& target);
+}
