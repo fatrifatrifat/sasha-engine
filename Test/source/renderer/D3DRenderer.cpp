@@ -68,6 +68,12 @@ float D3DRenderer::AspectRatio() const noexcept
 	return static_cast<float>(_appWidth) / _appHeight;
 }
 
+void D3DRenderer::SetAppSize(float w, float h) noexcept
+{
+	_appHeight = h;
+	_appWidth = w;	
+}
+
 void D3DRenderer::CreateDevice()
 {
 	#if defined (DEBUG) || defined (_DEBUG)

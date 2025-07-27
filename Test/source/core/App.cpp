@@ -77,8 +77,8 @@ void App::AppInit()
 	ShowWindow(_wndHandle, SW_SHOW);
 	UpdateWindow(_wndHandle);
 	
-	d3dApp = std::make_unique<D3DRenderer>(_wndHandle, SCREEN_WIDTH, SCREEN_HEIGHT);
-	d3dApp->d3dInit();
+	_d3dApp = std::make_unique<D3DRenderer>(_wndHandle, SCREEN_WIDTH, SCREEN_HEIGHT);
+	_d3dApp->d3dInit();
 }
 
 void App::Run()
@@ -101,9 +101,9 @@ void App::Run()
 			{
 				CalculateFPS();
 				// Update
-				d3dApp->Update(_timer);
+				_d3dApp->Update(_timer);
 				// Draw
-				d3dApp->RenderFrame(_timer);
+				_d3dApp->RenderFrame(_timer);
 			}
 		}
 	}
@@ -117,6 +117,9 @@ LRESULT App::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		if (wParam == VK_ESCAPE)
 			PostQuitMessage(0);
 		break;
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		break;
 	case WM_ACTIVATE:
 		if (LOWORD(wParam) == WA_INACTIVE)
 		{
@@ -128,6 +131,48 @@ LRESULT App::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			_isPaused = false;
 			_timer.Start();
 		}
+		break;
+	case WM_SIZE:
+		if (_d3dApp)
+		{
+			_d3dApp->SetAppSize(LOWORD(lParam), HIWORD(lParam));
+
+			if (wParam == SIZE_MINIMIZED)
+			{
+				_isPaused = true;
+				_minimized = true;
+				_maximized = false;
+			}
+			else if (wParam == SIZE_MAXIMIZED)
+			{
+				_isPaused = true;
+				_minimized = false;
+				_maximized = true;
+			}
+			else if (wParam == SIZE_RESTORED)
+			{
+				if (_minimized)
+				{
+					_isPaused = false;
+					_minimized = false;
+				}
+				else if (_maximized)
+				{
+					_isPaused = false;
+					_maximized = false;
+				}
+				_d3dApp->OnResize();
+			}
+		}
+		break;
+	case WM_EXITSIZEMOVE:
+		_isPaused = false;
+		_timer.Start();
+		_d3dApp->OnResize();
+		break;
+	case WM_GETMINMAXINFO:
+		((MINMAXINFO*)lParam)->ptMinTrackSize.x = 200;
+		((MINMAXINFO*)lParam)->ptMinTrackSize.y = 200;
 		break;
 	}
 

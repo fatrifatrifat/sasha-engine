@@ -61,7 +61,9 @@ private:
 	Timer _timer;
 	HINSTANCE _hInstance;
 	HWND _wndHandle;
+	bool _minimized = false;
+	bool _maximized = false;
 
-	std::unique_ptr<D3DRenderer> d3dApp;
+	std::unique_ptr<D3DRenderer> _d3dApp;
 };
 

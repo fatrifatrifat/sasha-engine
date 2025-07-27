@@ -17,7 +17,9 @@ public:
 	void RenderFrame(Timer& t);
 	void Update(Timer& t);
 	
+	void OnResize();
 	float AspectRatio() const noexcept;
+	void SetAppSize(float w, float h) noexcept;
 
 private:
 	void CreateDevice();
@@ -35,7 +37,6 @@ private:
 	void BuildPSO();
 	
 	void FlushQueue();
-	void OnResize();
 
 	ID3D12Resource* GetCurrBackBuffer();
 	D3D12_CPU_DESCRIPTOR_HANDLE GetCurrBackBufferView();
