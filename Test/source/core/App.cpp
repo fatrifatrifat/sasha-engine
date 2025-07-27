@@ -101,9 +101,9 @@ void App::Run()
 			{
 				CalculateFPS();
 				// Update
-				d3dApp->Update(_timer.DeltaTime());
+				d3dApp->Update(_timer);
 				// Draw
-				d3dApp->RenderFrame(_timer.DeltaTime());
+				d3dApp->RenderFrame(_timer);
 			}
 		}
 	}

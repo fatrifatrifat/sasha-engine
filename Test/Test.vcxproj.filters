@@ -58,6 +58,9 @@
     <ClInclude Include="source\utility\d3dUtil.h">
       <Filter>source\utility</Filter>
     </ClInclude>
+    <ClInclude Include="source\renderer\Mesh.h">
+      <Filter>source\renderer</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="shaders\defaultVS.hlsl">

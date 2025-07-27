@@ -27,6 +27,7 @@
   <ItemGroup>
     <ClInclude Include="source\core\App.h" />
     <ClInclude Include="source\renderer\D3DRenderer.h" />
+    <ClInclude Include="source\renderer\Mesh.h" />
     <ClInclude Include="source\utility\d3dException.h" />
     <ClInclude Include="source\utility\d3dIncludes.h" />
     <ClInclude Include="source\utility\d3dUtil.h" />

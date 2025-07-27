@@ -34,18 +34,32 @@ void D3DRenderer::d3dInit()
 	FlushQueue();
 }
 
-void D3DRenderer::RenderFrame(float dt)
+void D3DRenderer::RenderFrame(Timer& t)
 {
 	BeginFrame();
 	DrawFrame();
 	EndFrame();
 }
 
-void D3DRenderer::Update(float dt)
+void D3DRenderer::Update(Timer& t)
 {
 	ConstantBuffer cb;
-	DirectX::XMMATRIX identity = DirectX::XMMatrixIdentity();
-	XMStoreFloat4x4(&cb.WorldViewProj, XMMatrixTranspose(identity));
+
+	XMVECTOR pos = XMVectorSet(0.f, 0.f, -5.f, 1.f);
+	XMVECTOR target = XMVectorZero();
+	XMVECTOR up = XMVectorSet(0.f, 1.f, 0.f, 0.f);
+
+	XMMATRIX view = XMMatrixLookAtLH(pos, target, up);
+	XMStoreFloat4x4(&_view, view);
+
+	XMMATRIX world = XMLoadFloat4x4(&_world);
+	world = world * XMMatrixRotationY(t.TotalTime());
+
+	XMMATRIX proj = XMLoadFloat4x4(&_proj);
+	XMMATRIX worldViewProj = world * view * proj;
+
+	XMStoreFloat4x4(&cb.WorldViewProj, XMMatrixTranspose(worldViewProj));
+
 	_constantBuffer->CopyData(0, cb);
 }
 
@@ -238,49 +252,55 @@ void D3DRenderer::BuildInputLayout()
 
 void D3DRenderer::BuildGeometry()
 {
-
 	// Building vertex buffer
-	std::array<Vertex, 3> vertices =
+	std::array<Vertex, 8> vertices =
 	{
-		Vertex{DirectX::XMFLOAT3(-0.5f, -0.5f, 0.f), DirectX::XMFLOAT4(DirectX::Colors::Red)},
-		Vertex{DirectX::XMFLOAT3(+0.0f, +0.5f, 0.f), DirectX::XMFLOAT4(DirectX::Colors::Blue)},
-		Vertex{DirectX::XMFLOAT3(+0.5f, -0.5f, 0.f), DirectX::XMFLOAT4(DirectX::Colors::Green)},
+		Vertex({ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::White) }),
+		Vertex({ XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Black) }),
+		Vertex({ XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Red) }),
+		Vertex({ XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::Green) }),
+		Vertex({ XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Blue) }),
+		Vertex({ XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Yellow) }),
+		Vertex({ XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Cyan) }),
+		Vertex({ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Magenta) })
 	};
 
-	std::array<std::uint16_t, 3> indices =
+	std::array<std::uint16_t, 36> indices =
 	{
+		// front face
 		0, 1, 2,
+		0, 2, 3,
+
+		// back face
+		4, 6, 5,
+		4, 7, 6,
+
+		// left face
+		4, 5, 1,
+		4, 1, 0,
+
+		// right face
+		3, 2, 6,
+		3, 6, 7,
+
+		// top face
+		1, 5, 6,
+		1, 6, 2,
+
+		// bottom face
+		4, 0, 3,
+		4, 3, 7
 	};
 
-	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
-	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
-
-	_object = std::make_unique<MeshGeometry>();
+	_object = std::make_unique<MeshGeometry>(_device.Get(), _cmdList.Get(), vertices, indices);
 	_object->Name = "boxGeo";
 
-	ThrowIfFailed(D3DCreateBlob(vbByteSize, &_object->VertexBufferCPU));
-	CopyMemory(_object->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
-
-	ThrowIfFailed(D3DCreateBlob(ibByteSize, &_object->IndexBufferCPU));
-	CopyMemory(_object->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
-
-	_object->VertexBufferGPU = d3dUtil::CreateBuffer(_device.Get(),
-		_cmdList.Get(), _object->VertexBufferUploader, vertices.data(), vbByteSize);
-
-	_object->IndexBufferGPU = d3dUtil::CreateBuffer(_device.Get(),
-		_cmdList.Get(), _object->IndexBufferUploader, indices.data(), ibByteSize);
-
-	_object->VertexByteStride = sizeof(Vertex);
-	_object->VertexBufferByteSize = vbByteSize;
-	_object->IndexFormat = DXGI_FORMAT_R16_UINT;
-	_object->IndexBufferByteSize = ibByteSize;
-
 	SubmeshGeometry submesh;
-	submesh.IndexCount = (UINT)indices.size();
-	submesh.StartIndexLocation = 0;
-	submesh.BaseVertexLocation = 0;
+	submesh._indexCount = (UINT)indices.size();
+	submesh._startIndexLocation = 0;
+	submesh._baseVertexLocation = 0;
 
-	_object->DrawArgs["box"] = submesh;
+	_object->_subGeometry["box"] = submesh;
 }
 
 void D3DRenderer::BuildCbvDescriptorHeap()
@@ -404,6 +424,9 @@ void D3DRenderer::OnResize()
 
 	CreateRTV();
 	CreateDSV();
+
+	XMMATRIX P = XMMatrixPerspectiveFovLH(0.25f * 3.14159265f, AspectRatio(), 1.0f, 1000.0f);
+	XMStoreFloat4x4(&_proj, P);
 }
 
 ID3D12Resource* D3DRenderer::GetCurrBackBuffer()
@@ -463,7 +486,7 @@ void D3DRenderer::DrawFrame()
 	_cmdList->RSSetViewports(1, &_vp);
 	_cmdList->RSSetScissorRects(1, &_scissor);
 
-	_cmdList->ClearRenderTargetView(GetCurrBackBufferView(), DirectX::Colors::SteelBlue, 0, nullptr);
+	_cmdList->ClearRenderTargetView(GetCurrBackBufferView(), Colors::SteelBlue, 0, nullptr);
 	_cmdList->ClearDepthStencilView(GetDSView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
 
 	auto currBackBufferView = GetCurrBackBufferView();
@@ -484,7 +507,7 @@ void D3DRenderer::DrawFrame()
 	_cmdList->SetGraphicsRootDescriptorTable(0, _cbvHeap->GetGPUDescriptorHandleForHeapStart());
 	//_cmdList->SetPipelineState(_pso.Get());
 
-	_cmdList->DrawIndexedInstanced(_object->DrawArgs["box"].IndexCount, 1u, 0u, 0u, 0u);
+	_cmdList->DrawIndexedInstanced(_object->_subGeometry["box"]._indexCount, 1u, 0u, 0u, 0u);
 }
 
 void D3DRenderer::EndFrame()
