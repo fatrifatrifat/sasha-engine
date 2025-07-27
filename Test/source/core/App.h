@@ -64,6 +64,9 @@ private:
 	bool _minimized = false;
 	bool _maximized = false;
 
+	Keyboard _kbd;
+	Mouse _mouse;
+
 	std::unique_ptr<D3DRenderer> _d3dApp;
 };
 

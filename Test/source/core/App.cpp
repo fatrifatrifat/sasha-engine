@@ -78,6 +78,7 @@ void App::AppInit()
 	UpdateWindow(_wndHandle);
 	
 	_d3dApp = std::make_unique<D3DRenderer>(_wndHandle, SCREEN_WIDTH, SCREEN_HEIGHT);
+	_d3dApp->SetInputs(&_kbd, &_mouse);
 	_d3dApp->d3dInit();
 }
 
@@ -105,6 +106,8 @@ void App::Run()
 				// Draw
 				_d3dApp->RenderFrame(_timer);
 			}
+			_kbd.EndFrame();
+			_mouse.EndFrame();
 		}
 	}
 }
@@ -116,7 +119,28 @@ LRESULT App::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	case WM_KEYDOWN:
 		if (wParam == VK_ESCAPE)
 			PostQuitMessage(0);
+		else
+			_kbd.OnKeyDown(wParam);
 		break;
+	case WM_KEYUP:
+		_kbd.OnKeyUp(wParam);
+		break;
+
+	case WM_MOUSEMOVE:
+		_mouse.OnMouseMove(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+		break;
+
+	case WM_LBUTTONDOWN:
+		_mouse.OnButtonDown(VK_LBUTTON);
+		break;
+	case WM_LBUTTONUP:
+		_mouse.OnButtonUp(VK_LBUTTON);
+		break;
+
+	case WM_MOUSEWHEEL:
+		_mouse.OnWheelDelta(GET_WHEEL_DELTA_WPARAM(wParam));
+		break;
+
 	case WM_DESTROY:
 		PostQuitMessage(0);
 		break;

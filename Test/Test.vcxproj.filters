@@ -21,6 +21,9 @@
     <Filter Include="shaders">
       <UniqueIdentifier>{9aae7ca6-a1b6-4876-b228-be55f95a6981}</UniqueIdentifier>
     </Filter>
+    <Filter Include="source\core\input">
+      <UniqueIdentifier>{6d23e60e-937a-4337-b2bb-c67b1c378c65}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\renderer\D3DRenderer.cpp">
@@ -34,6 +37,12 @@
     </ClCompile>
     <ClCompile Include="source\Main.cpp">
       <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\core\input\Keyboard.cpp">
+      <Filter>source\core\input</Filter>
+    </ClCompile>
+    <ClCompile Include="source\core\input\Mouse.cpp">
+      <Filter>source\core\input</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -60,6 +69,12 @@
     </ClInclude>
     <ClInclude Include="source\renderer\Mesh.h">
       <Filter>source\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="source\core\input\Keyboard.h">
+      <Filter>source\core\input</Filter>
+    </ClInclude>
+    <ClInclude Include="source\core\input\Mouse.h">
+      <Filter>source\core\input</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

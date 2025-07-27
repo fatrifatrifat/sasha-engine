@@ -34,6 +34,12 @@ void D3DRenderer::d3dInit()
 	FlushQueue();
 }
 
+void D3DRenderer::SetInputs(Keyboard* kb, Mouse* m) noexcept
+{
+	_kbd = kb;
+	_mouse = m;
+}
+
 void D3DRenderer::RenderFrame(Timer& t)
 {
 	BeginFrame();
@@ -43,9 +49,22 @@ void D3DRenderer::RenderFrame(Timer& t)
 
 void D3DRenderer::Update(Timer& t)
 {
+	if (_kbd->IsKeyPressed('W'))
+		_cameraPos.z += _cameraSpeed * t.DeltaTime();
+	else if(_kbd->IsKeyPressed('S'))
+		_cameraPos.z -= _cameraSpeed * t.DeltaTime();
+	else if(_kbd->IsKeyPressed('D'))
+		_cameraPos.x += _cameraSpeed * t.DeltaTime();
+	else if (_kbd->IsKeyPressed('A'))
+		_cameraPos.x -= _cameraSpeed * t.DeltaTime();
+	else if (_kbd->IsKeyPressed(VK_SPACE))
+		_cameraPos.y += _cameraSpeed * t.DeltaTime();
+	else if (_kbd->IsKeyPressed(VK_CONTROL))
+		_cameraPos.y -= _cameraSpeed * t.DeltaTime();
+
 	ConstantBuffer cb;
 
-	XMVECTOR pos = XMVectorSet(0.f, 0.f, -5.f, 1.f);
+	XMVECTOR pos = XMLoadFloat4(&_cameraPos);
 	XMVECTOR target = XMVectorZero();
 	XMVECTOR up = XMVectorSet(0.f, 1.f, 0.f, 0.f);
 
@@ -68,7 +87,7 @@ float D3DRenderer::AspectRatio() const noexcept
 	return static_cast<float>(_appWidth) / _appHeight;
 }
 
-void D3DRenderer::SetAppSize(float w, float h) noexcept
+void D3DRenderer::SetAppSize(int w, int h) noexcept
 {
 	_appHeight = h;
 	_appWidth = w;	

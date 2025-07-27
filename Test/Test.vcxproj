@@ -20,12 +20,16 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\core\App.cpp" />
+    <ClCompile Include="source\core\input\Keyboard.cpp" />
+    <ClCompile Include="source\core\input\Mouse.cpp" />
     <ClCompile Include="source\Main.cpp" />
     <ClCompile Include="source\renderer\D3DRenderer.cpp" />
     <ClCompile Include="source\utility\d3dUtil.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\core\App.h" />
+    <ClInclude Include="source\core\input\Keyboard.h" />
+    <ClInclude Include="source\core\input\Mouse.h" />
     <ClInclude Include="source\renderer\D3DRenderer.h" />
     <ClInclude Include="source\renderer\Mesh.h" />
     <ClInclude Include="source\utility\d3dException.h" />

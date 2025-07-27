@@ -1,4 +1,6 @@
 #include "../utility/d3dUtil.h"
+#include "../core/input/Keyboard.h"
+#include "../core/input/Mouse.h"
 #include "Mesh.h"
 
 using namespace Microsoft::WRL;
@@ -14,12 +16,13 @@ public:
 	D3DRenderer& operator=(const D3DRenderer&) = delete;
 
 	void d3dInit();
+	void SetInputs(Keyboard* kb, Mouse* m) noexcept;
 	void RenderFrame(Timer& t);
 	void Update(Timer& t);
 	
 	void OnResize();
 	float AspectRatio() const noexcept;
-	void SetAppSize(float w, float h) noexcept;
+	void SetAppSize(int w, int h) noexcept;
 
 private:
 	void CreateDevice();
@@ -56,6 +59,12 @@ private:
 	int _appWidth;
 	int _appHeight;
 	HWND _wndHandle;
+
+	Keyboard* _kbd = nullptr;
+	Mouse* _mouse = nullptr;
+
+	XMFLOAT4 _cameraPos = { 0.f, 0.f, -5.f, 1.f };
+	const float _cameraSpeed = 5.f;
 
 	ComPtr<ID3D12Device> _device;
 	ComPtr<IDXGIFactory4> _factory;
