@@ -278,7 +278,7 @@ void D3DRenderer::BuildInputLayout()
 void D3DRenderer::BuildGeometry()
 {
 	// Building vertex buffer
-	std::array<Vertex, 8> vertices =
+	std::array<Vertex, 13> vertices =
 	{
 		Vertex({ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::White) }),
 		Vertex({ XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Black) }),
@@ -287,10 +287,15 @@ void D3DRenderer::BuildGeometry()
 		Vertex({ XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Blue) }),
 		Vertex({ XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Yellow) }),
 		Vertex({ XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Cyan) }),
-		Vertex({ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Magenta) })
+		Vertex({ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Magenta) }),
+		Vertex({ XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::White) }),
+		Vertex({ XMFLOAT3(+0.0f, +3.0f, +0.0f), XMFLOAT4(Colors::Beige) }),
+		Vertex({ XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Pink) }),
+		Vertex({ XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Blue) }),
+		Vertex({ XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Black) }),
 	};
 
-	std::array<std::uint16_t, 36> indices =
+	std::array<std::uint16_t, 54> indices =
 	{
 		// front face
 		0, 1, 2,
@@ -314,7 +319,14 @@ void D3DRenderer::BuildGeometry()
 
 		// bottom face
 		4, 0, 3,
-		4, 3, 7
+		4, 3, 7,
+
+		8, 9, 10,
+		11, 9, 8,
+		12, 9, 11,
+		10, 9, 12,
+		8, 12, 11,
+		8, 10, 12,
 	};
 
 	_object = std::make_unique<MeshGeometry>(_device.Get(), _cmdList.Get(), vertices, indices);
