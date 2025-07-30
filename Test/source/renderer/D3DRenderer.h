@@ -8,6 +8,21 @@ using namespace DirectX;
 
 class D3DRenderer
 {
+	class FrameResource
+	{
+	public:
+		FrameResource(ID3D12Device* device, UINT cbCount = 1)
+		{
+			device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(_cmdAlloc.GetAddressOf()));
+			_cb = std::make_unique<d3dUtil::UploadBuffer<ConstantBuffer>>(device, cbCount, true);
+		}
+
+	public:
+		UINT _fence = 0u;
+
+		ComPtr<ID3D12CommandAllocator> _cmdAlloc;
+		std::unique_ptr<d3dUtil::UploadBuffer<ConstantBuffer>> _cb;
+	};
 public:
 	D3DRenderer(HWND wh, int w, int h);
 	~D3DRenderer();
@@ -32,6 +47,7 @@ private:
 	void CreateRTV();
 	void CreateDSV();
 
+	void BuildFrameResources();
 	void BuildInputLayout();
 	void BuildGeometry();
 	void BuildCbvDescriptorHeap();
@@ -107,4 +123,10 @@ private:
 
 	ComPtr<ID3D12PipelineState> _pso;
 	ComPtr<ID3D12RootSignature> _rootSignature;
+
+	static const UINT _frameResourceCount = 3u;
+	std::vector<std::unique_ptr<FrameResource>> _framesResources;
+	UINT _currFrameResourceIndex = 0u;
+	FrameResource* _currFrameResource = nullptr;
+	
 };

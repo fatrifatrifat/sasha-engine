@@ -28,6 +28,7 @@ void D3DRenderer::d3dInit()
 	BuildRootSignature();
 	BuildInputLayout();
 	BuildGeometry();
+	BuildFrameResources();
 	BuildPSO();
 
 	ExecuteCmdList();
@@ -49,6 +50,17 @@ void D3DRenderer::RenderFrame(Timer& t)
 
 void D3DRenderer::Update(Timer& t)
 {
+	_currFrameResourceIndex = (_currFrameResourceIndex + 1) % _frameResourceCount;
+	_currFrameResource = _framesResources[_currFrameResourceIndex].get();
+
+	if (_currFrameResource->_fence != 0 && _fence->GetCompletedValue() < _currFrameResource->_fence)
+	{
+		HANDLE eventHandle = CreateEventEx(nullptr, nullptr, false, EVENT_ALL_ACCESS);
+		_fence->SetEventOnCompletion(_currFrameResource->_fence, eventHandle);
+		WaitForSingleObject(eventHandle, INFINITE);
+		CloseHandle(eventHandle);
+	}
+
 	if (_kbd->IsKeyPressed('W'))
 		_cameraPos.z += _cameraSpeed * t.DeltaTime();
 	else if(_kbd->IsKeyPressed('S'))
@@ -79,7 +91,7 @@ void D3DRenderer::Update(Timer& t)
 
 	XMStoreFloat4x4(&cb.WorldViewProj, XMMatrixTranspose(worldViewProj));
 
-	_constantBuffer->CopyData(0, cb);
+	_currFrameResource->_cb->CopyData(0, cb);
 }
 
 float D3DRenderer::AspectRatio() const noexcept
@@ -258,6 +270,13 @@ void D3DRenderer::CreateDSV()
 
 	ExecuteCmdList();
 	FlushQueue();
+}
+
+void D3DRenderer::BuildFrameResources()
+{
+	_framesResources.reserve(_frameResourceCount);
+	for (UINT i = 0; i < _frameResourceCount; i++)
+		_framesResources.push_back(std::make_unique<FrameResource>(_device.Get()));
 }
 
 void D3DRenderer::BuildInputLayout()
@@ -512,8 +531,10 @@ void D3DRenderer::ChangeResourceState(
 
 void D3DRenderer::BeginFrame()
 {
-	ThrowIfFailed(_cmdAlloc->Reset());
-	ThrowIfFailed(_cmdList->Reset(_cmdAlloc.Get(), _pso.Get()));
+	auto cmdAlloc = _currFrameResource->_cmdAlloc;
+
+	ThrowIfFailed(cmdAlloc->Reset());
+	ThrowIfFailed(_cmdList->Reset(cmdAlloc.Get(), _pso.Get()));
 
 	ChangeResourceState(GetCurrBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 }
@@ -555,5 +576,6 @@ void D3DRenderer::EndFrame()
 	_swapChain->Present(0, 0);
 	_currBackBuffer = (_currBackBuffer + 1) % bufferCount;
 
-	FlushQueue();
+	_currFrameResource->_fence = ++_currFence;
+	_cmdQueue->Signal(_fence.Get(), _currFence);
 }
