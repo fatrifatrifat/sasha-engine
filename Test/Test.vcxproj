@@ -24,6 +24,7 @@
     <ClCompile Include="source\core\input\Mouse.cpp" />
     <ClCompile Include="source\Main.cpp" />
     <ClCompile Include="source\renderer\D3DRenderer.cpp" />
+    <ClCompile Include="source\renderer\GeometryGenerator.cpp" />
     <ClCompile Include="source\utility\d3dUtil.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -31,6 +32,7 @@
     <ClInclude Include="source\core\input\Keyboard.h" />
     <ClInclude Include="source\core\input\Mouse.h" />
     <ClInclude Include="source\renderer\D3DRenderer.h" />
+    <ClInclude Include="source\renderer\GeometryGenerator.h" />
     <ClInclude Include="source\renderer\Mesh.h" />
     <ClInclude Include="source\utility\d3dException.h" />
     <ClInclude Include="source\utility\d3dIncludes.h" />

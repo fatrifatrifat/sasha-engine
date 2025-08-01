@@ -2,12 +2,48 @@
 #include "../core/input/Keyboard.h"
 #include "../core/input/Mouse.h"
 #include "Mesh.h"
+#include "GeometryGenerator.h"
 
 using namespace Microsoft::WRL;
 using namespace DirectX;
 
 class D3DRenderer
 {
+private:
+	struct FrameResource
+	{
+		FrameResource(ID3D12Device* device, UINT cbCount = 1)
+		{
+			ThrowIfFailed(device->CreateCommandAllocator(
+				D3D12_COMMAND_LIST_TYPE_DIRECT,
+				IID_PPV_ARGS(_cmdAlloc.GetAddressOf())
+			));
+
+			_cb = std::make_unique<d3dUtil::UploadBuffer<ConstantBuffer>>(device, cbCount, true);
+		}
+		FrameResource(const FrameResource&) = delete;
+		FrameResource& operator=(const FrameResource&) = delete;
+		~FrameResource() = default;
+
+		ComPtr<ID3D12CommandAllocator> _cmdAlloc;
+		std::unique_ptr<d3dUtil::UploadBuffer<ConstantBuffer>> _cb = nullptr;
+		UINT64 _fence = 0u;
+	};
+
+	struct RenderItem
+	{
+		XMFLOAT4X4 _world = d3dUtil::Identity4x4();
+
+		UINT _cbObjIndex = -1;
+		MeshGeometry* _mesh = nullptr;
+
+		D3D12_PRIMITIVE_TOPOLOGY _primitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+		
+		UINT _indexCount = 0u;
+		UINT _startIndex = 0u;
+		UINT _baseVertex = 0u;
+	};
+
 public:
 	D3DRenderer(HWND wh, int w, int h);
 	~D3DRenderer();
@@ -34,6 +70,8 @@ private:
 
 	void BuildInputLayout();
 	void BuildGeometry();
+	void BuildRenderItems();
+	void BuildFrameResouces();
 	void BuildCbvDescriptorHeap();
 	void BuildConstantBuffers();
 	void BuildRootSignature();
@@ -84,7 +122,7 @@ private:
 	ComPtr<ID3D12DescriptorHeap> _rtvHeap;
 	ComPtr<ID3D12DescriptorHeap> _dsvHeap;
 
-	static const UINT bufferCount = 2u;
+	static constexpr UINT bufferCount = 2u;
 	UINT _currBackBuffer = 0u;
 	ComPtr<ID3D12Resource> _swapChainBuffer[bufferCount];
 	ComPtr<ID3D12Resource> _depthStencilBuffer;
@@ -100,8 +138,13 @@ private:
 	XMFLOAT4X4 _view = d3dUtil::Identity4x4();
 	XMFLOAT4X4 _proj = d3dUtil::Identity4x4();
 
-	std::unique_ptr<MeshGeometry> _object;
+	std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> _meshes;
+	std::vector<std::unique_ptr<RenderItem>> _objects;
 	
+	static constexpr int _frameResourceCount = 3;
+	std::vector<std::unique_ptr<FrameResource>> _frameResources;
+	int _frameResouceIndex = 0u;
+
 	std::unique_ptr<d3dUtil::UploadBuffer<ConstantBuffer>> _constantBuffer;
 	ComPtr<ID3D12DescriptorHeap> _cbvHeap;
 

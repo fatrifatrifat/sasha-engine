@@ -44,6 +44,9 @@
     <ClCompile Include="source\core\input\Mouse.cpp">
       <Filter>source\core\input</Filter>
     </ClCompile>
+    <ClCompile Include="source\renderer\GeometryGenerator.cpp">
+      <Filter>source\renderer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\renderer\D3DRenderer.h">
@@ -75,6 +78,9 @@
     </ClInclude>
     <ClInclude Include="source\core\input\Mouse.h">
       <Filter>source\core\input</Filter>
+    </ClInclude>
+    <ClInclude Include="source\renderer\GeometryGenerator.h">
+      <Filter>source\renderer</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -23,11 +23,13 @@ void D3DRenderer::d3dInit()
 
 	ThrowIfFailed(_cmdList->Reset(_cmdAlloc.Get(), nullptr));
 
+	BuildInputLayout();
+	BuildGeometry();
+	BuildRenderItems();
+	BuildFrameResouces();
 	BuildCbvDescriptorHeap();
 	BuildConstantBuffers();
 	BuildRootSignature();
-	BuildInputLayout();
-	BuildGeometry();
 	BuildPSO();
 
 	ExecuteCmdList();
@@ -49,6 +51,17 @@ void D3DRenderer::RenderFrame(Timer& t)
 
 void D3DRenderer::Update(Timer& t)
 {
+	_frameResouceIndex = (_frameResouceIndex + 1) % _frameResourceCount;
+	auto& currFrameResource = _frameResources[_frameResouceIndex];
+
+	if (currFrameResource->_fence != 0 && _fence->GetCompletedValue() < currFrameResource->_fence)
+	{
+		HANDLE eventHandle = CreateEventEx(nullptr, nullptr, false, EVENT_ALL_ACCESS);
+		_fence->SetEventOnCompletion(currFrameResource->_fence, eventHandle);
+		WaitForSingleObject(eventHandle, INFINITE);
+		CloseHandle(eventHandle);
+	}
+
 	if (_kbd->IsKeyPressed('W'))
 		_cameraPos.z += _cameraSpeed * t.DeltaTime();
 	else if(_kbd->IsKeyPressed('S'))
@@ -278,72 +291,83 @@ void D3DRenderer::BuildInputLayout()
 void D3DRenderer::BuildGeometry()
 {
 	// Building vertex buffer
-	std::array<Vertex, 13> vertices =
+	GeometryGenerator g;
+	GeometryGenerator::MeshData sphere1 = g.CreateGeosphere(1, 4);
+	GeometryGenerator::MeshData sphere2 = g.CreateGeosphere(1, 4);
+
+	UINT sphere1VertexOffset = 0u;
+	UINT sphere2VertexOffset = (UINT)sphere1.Vertices.size();
+
+	UINT sphere1IndexOffset = 0u;
+	UINT sphere2IndexOffset = (UINT)sphere1.Indices32.size();
+
+	SubmeshGeometry spheres[2];
+	spheres[0]._indexCount = (UINT)sphere1.Indices32.size();
+	spheres[0]._startIndexLocation = sphere1IndexOffset;
+	spheres[0]._baseVertexLocation = sphere1VertexOffset;
+
+	spheres[1]._indexCount = (UINT)sphere2.Indices32.size();
+	spheres[1]._startIndexLocation = sphere2IndexOffset;
+	spheres[1]._baseVertexLocation = sphere2VertexOffset;
+
+	auto totalVertex = sphere1.Vertices.size() + sphere2.Vertices.size();
+
+	std::vector<Vertex> vertices(totalVertex);
+
+	for (size_t i = 0; i < sphere1.Vertices.size(); i++)
 	{
-		Vertex({ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::White) }),
-		Vertex({ XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Black) }),
-		Vertex({ XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Red) }),
-		Vertex({ XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::Green) }),
-		Vertex({ XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Blue) }),
-		Vertex({ XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Yellow) }),
-		Vertex({ XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Cyan) }),
-		Vertex({ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Magenta) }),
-		Vertex({ XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::White) }),
-		Vertex({ XMFLOAT3(+0.0f, +3.0f, +0.0f), XMFLOAT4(Colors::Beige) }),
-		Vertex({ XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Pink) }),
-		Vertex({ XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Blue) }),
-		Vertex({ XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Black) }),
-	};
+		vertices[i].Pos = sphere1.Vertices[i].Position;
+		vertices[i].Color = XMFLOAT4(Colors::LightPink);
+	}
 
-	std::array<std::uint16_t, 54> indices =
+	for (size_t i = 0; i < sphere2.Vertices.size(); i++)
 	{
-		// front face
-		0, 1, 2,
-		0, 2, 3,
+		vertices[i].Pos = sphere2.Vertices[i].Position;
+		vertices[i].Color = XMFLOAT4(Colors::BlueViolet);
+	}
 
-		// back face
-		4, 6, 5,
-		4, 7, 6,
+	std::vector<std::uint16_t> indices;
+	indices.insert(indices.end(), std::begin(sphere1.GetIndices16()), std::end(sphere1.GetIndices16()));
+	indices.insert(indices.end(), std::begin(sphere2.GetIndices16()), std::end(sphere2.GetIndices16()));
 
-		// left face
-		4, 5, 1,
-		4, 1, 0,
+	auto ob = std::make_unique<MeshGeometry>(_device.Get(), _cmdList.Get(), vertices, indices);
+	ob->_subGeometry["sphere1"] = spheres[0];
+	ob->_subGeometry["sphere2"] = spheres[1];
 
-		// right face
-		3, 2, 6,
-		3, 6, 7,
+	_meshes["spheres"] = std::move(ob);
+}
 
-		// top face
-		1, 5, 6,
-		1, 6, 2,
+void D3DRenderer::BuildRenderItems()
+{
+	auto sphere1 = std::make_unique<RenderItem>();
+	sphere1->_cbObjIndex = 0;
+	sphere1->_mesh = _meshes["spheres"].get();
+	sphere1->_indexCount = sphere1->_mesh->_subGeometry["sphere1"]._indexCount;
+	sphere1->_startIndex = sphere1->_mesh->_subGeometry["sphere1"]._startIndexLocation;
+	sphere1->_baseVertex = sphere1->_mesh->_subGeometry["sphere1"]._baseVertexLocation;
+	_objects.push_back(std::move(sphere1));
 
-		// bottom face
-		4, 0, 3,
-		4, 3, 7,
+	auto sphere2 = std::make_unique<RenderItem>();
+	sphere2->_cbObjIndex = 1;
+	sphere2->_mesh = _meshes["spheres"].get();
+	sphere2->_indexCount = sphere2->_mesh->_subGeometry["sphere2"]._indexCount;
+	sphere2->_startIndex = sphere2->_mesh->_subGeometry["sphere2"]._startIndexLocation;
+	sphere2->_baseVertex = sphere2->_mesh->_subGeometry["sphere2"]._baseVertexLocation;
+	_objects.push_back(std::move(sphere2));
+}
 
-		8, 9, 10,
-		11, 9, 8,
-		12, 9, 11,
-		10, 9, 12,
-		8, 12, 11,
-		8, 10, 12,
-	};
-
-	_object = std::make_unique<MeshGeometry>(_device.Get(), _cmdList.Get(), vertices, indices);
-	_object->Name = "boxGeo";
-
-	SubmeshGeometry submesh;
-	submesh._indexCount = (UINT)indices.size();
-	submesh._startIndexLocation = 0;
-	submesh._baseVertexLocation = 0;
-
-	_object->_subGeometry["box"] = submesh;
+void D3DRenderer::BuildFrameResouces()
+{
+	for (int i = 0; i < _frameResourceCount; i++)
+		_frameResources.push_back(std::make_unique<FrameResource>(_device.Get()));
 }
 
 void D3DRenderer::BuildCbvDescriptorHeap()
 {
+	UINT descriptorHeapCount = _objects.size() * _frameResourceCount;
+
 	D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc{};
-	cbvHeapDesc.NumDescriptors = 1;
+	cbvHeapDesc.NumDescriptors = descriptorHeapCount;
 	cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	cbvHeapDesc.NodeMask = 0;
@@ -353,16 +377,27 @@ void D3DRenderer::BuildCbvDescriptorHeap()
 
 void D3DRenderer::BuildConstantBuffers()
 {
-	_constantBuffer = std::make_unique<d3dUtil::UploadBuffer<ConstantBuffer>>(_device.Get(), 1, true);
-
-	D3D12_GPU_VIRTUAL_ADDRESS cbAddress = _constantBuffer->GetResource()->GetGPUVirtualAddress();
 	UINT cbSize = d3dUtil::CalcConstantBufferSize(sizeof(ConstantBuffer));
 
-	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc{};
-	cbvDesc.BufferLocation = cbAddress;
-	cbvDesc.SizeInBytes = cbSize;
+	for (UINT i = 0; i < _frameResourceCount; i++)
+	{
+		auto objCB = _frameResources[_frameResouceIndex]->_cb->GetResource();
+		for (UINT j = 0; j < _objects.size(); j++)
+		{
+			D3D12_GPU_VIRTUAL_ADDRESS cbAddress = _frameResources[_frameResouceIndex]->_cb->GetResource()->GetGPUVirtualAddress();
+			cbAddress += j * cbSize;
+			
+			int heapIndex = i * _objects.size() + j;
+			auto handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(_cbvHeap->GetCPUDescriptorHandleForHeapStart());
+			handle.Offset(heapIndex, _cbvDescriptorSize);
 
-	_device->CreateConstantBufferView(&cbvDesc, _cbvHeap->GetCPUDescriptorHandleForHeapStart());
+			D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc{};
+			cbvDesc.BufferLocation = cbAddress;
+			cbvDesc.SizeInBytes = cbSize;
+
+			_device->CreateConstantBufferView(&cbvDesc, handle);
+		}
+	}
 }
 
 void D3DRenderer::BuildRootSignature()
@@ -512,8 +547,9 @@ void D3DRenderer::ChangeResourceState(
 
 void D3DRenderer::BeginFrame()
 {
-	ThrowIfFailed(_cmdAlloc->Reset());
-	ThrowIfFailed(_cmdList->Reset(_cmdAlloc.Get(), _pso.Get()));
+
+	ThrowIfFailed(_frameResources[_frameResouceIndex]->_cmdAlloc->Reset());
+	ThrowIfFailed(_cmdList->Reset(_frameResources[_frameResouceIndex]->_cmdAlloc.Get(), _pso.Get()));
 
 	ChangeResourceState(GetCurrBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 }
@@ -535,16 +571,25 @@ void D3DRenderer::DrawFrame()
 
 	_cmdList->SetGraphicsRootSignature(_rootSignature.Get());
 
-	auto vbv = _object->VertexBufferView();
-	auto ibv = _object->IndexBufferView();
-	_cmdList->IASetVertexBuffers(0, 1, &vbv);
-	_cmdList->IASetIndexBuffer(&ibv);
-	_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	for (auto& ri : _objects)
+	{
+		auto vbv = ri->_mesh->VertexBufferView();
+		auto ibv = ri->_mesh->IndexBufferView();
 
-	_cmdList->SetGraphicsRootDescriptorTable(0, _cbvHeap->GetGPUDescriptorHandleForHeapStart());
-	//_cmdList->SetPipelineState(_pso.Get());
+		_cmdList->IASetVertexBuffers(0, 1, &vbv);
+		_cmdList->IASetIndexBuffer(&ibv);
+		_cmdList->IASetPrimitiveTopology(ri->_primitiveType);
 
-	_cmdList->DrawIndexedInstanced(_object->_subGeometry["box"]._indexCount, 1u, 0u, 0u, 0u);
+		UINT cbvIndex = _frameResouceIndex * (UINT)_objects.size() + ri->_cbObjIndex;
+		auto cbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(_cbvHeap->GetGPUDescriptorHandleForHeapStart());
+		cbvHandle.Offset(cbvIndex, _cbvDescriptorSize);
+
+		_cmdList->SetGraphicsRootDescriptorTable(0, cbvHandle);
+
+		//_cmdList->SetPipelineState(_pso.Get());
+		_cmdList->DrawIndexedInstanced(ri->_indexCount, 1u, ri->_startIndex, ri->_baseVertex, 0u);
+	}
+	
 }
 
 void D3DRenderer::EndFrame()
@@ -555,5 +600,5 @@ void D3DRenderer::EndFrame()
 	_swapChain->Present(0, 0);
 	_currBackBuffer = (_currBackBuffer + 1) % bufferCount;
 
-	FlushQueue();
+	_frameResources[_frameResouceIndex]->_fence = ++_currFence;
 }
