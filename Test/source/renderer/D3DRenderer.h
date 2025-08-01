@@ -68,6 +68,7 @@ private:
 	void CreateRTV();
 	void CreateDSV();
 
+	void BuildFrameResources();
 	void BuildInputLayout();
 	void BuildGeometry();
 	void BuildRenderItems();
@@ -150,4 +151,10 @@ private:
 
 	ComPtr<ID3D12PipelineState> _pso;
 	ComPtr<ID3D12RootSignature> _rootSignature;
+
+	static const UINT _frameResourceCount = 3u;
+	std::vector<std::unique_ptr<FrameResource>> _framesResources;
+	UINT _currFrameResourceIndex = 0u;
+	FrameResource* _currFrameResource = nullptr;
+	
 };
