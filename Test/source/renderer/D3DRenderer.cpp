@@ -317,13 +317,13 @@ void D3DRenderer::BuildGeometry()
 {
 	// Building vertex buffer
 	GeometryGenerator g;
-	GeometryGenerator::MeshData sphere1 = g.CreateGeosphere(1, 4);
-	GeometryGenerator::MeshData sphere2 = g.CreateGeosphere(1, 4);
+	GeometryGenerator::MeshData sphere1 = g.CreateGeosphere(1, 3);
+	GeometryGenerator::MeshData sphere2 = g.CreateBox(1, 1, 1, 0);
 
 	UINT sphere1VertexOffset = 0u;
-	UINT sphere2VertexOffset = (UINT)sphere1.Vertices.size();
-
 	UINT sphere1IndexOffset = 0u;
+
+	UINT sphere2VertexOffset = (UINT)sphere1.Vertices.size();
 	UINT sphere2IndexOffset = (UINT)sphere1.Indices32.size();
 
 	SubmeshGeometry spheres[2];
@@ -339,16 +339,18 @@ void D3DRenderer::BuildGeometry()
 
 	std::vector<Vertex> vertices(totalVertex);
 
+
 	for (size_t i = 0; i < sphere1.Vertices.size(); i++)
 	{
 		vertices[i].Pos = sphere1.Vertices[i].Position;
 		vertices[i].Color = XMFLOAT4(Colors::LightPink);
 	}
 
-	for (size_t i = sphere1.Vertices.size(); i < sphere2.Vertices.size(); i++)
+	for (size_t i = 0; i < sphere2.Vertices.size(); i++)
 	{
-		vertices[i].Pos = sphere2.Vertices[i].Position;
-		vertices[i].Color = XMFLOAT4(Colors::BlueViolet);
+		size_t destIndex = sphere1.Vertices.size() + i;
+		vertices[destIndex].Pos = sphere2.Vertices[i].Position;
+		vertices[destIndex].Color = XMFLOAT4(Colors::BlueViolet);
 	}
 
 	std::vector<std::uint16_t> indices;
@@ -497,6 +499,7 @@ void D3DRenderer::BuildPSO()
 		_pixelShader->GetBufferSize()
 	};
 	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
 	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	psoDesc.SampleMask = UINT_MAX;
@@ -623,7 +626,7 @@ void D3DRenderer::DrawFrame()
 	passCbvHandle.Offset(passCbvIndex, _cbvDescriptorSize);
 	_cmdList->SetGraphicsRootDescriptorTable(1, passCbvHandle);
 
-	for (auto& ri : _objects)
+	for (const auto& ri : _objects)
 	{
 		auto vbv = ri->_mesh->VertexBufferView();
 		auto ibv = ri->_mesh->IndexBufferView();
@@ -638,7 +641,6 @@ void D3DRenderer::DrawFrame()
 
 		_cmdList->SetGraphicsRootDescriptorTable(0, cbvHandle);
 
-		//_cmdList->SetPipelineState(_pso.Get());
 		_cmdList->DrawIndexedInstanced(ri->_indexCount, 1u, ri->_startIndex, ri->_baseVertex, 0u);
 	}
 	
