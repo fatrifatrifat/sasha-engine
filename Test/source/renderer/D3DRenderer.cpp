@@ -23,15 +23,13 @@ void D3DRenderer::d3dInit()
 
 	ThrowIfFailed(_cmdList->Reset(_cmdAlloc.Get(), nullptr));
 
-	BuildInputLayout();
-	BuildGeometry();
-	BuildRenderItems();
-	BuildFrameResouces();
-	BuildCbvDescriptorHeap();
-	BuildConstantBuffers();
 	BuildRootSignature();
 	BuildInputLayout();
 	BuildGeometry();
+	BuildRenderItems();
+	BuildFrameResources();
+	BuildCbvDescriptorHeap();
+	BuildConstantBuffers();
 	BuildPSO();
 
 	ExecuteCmdList();
@@ -53,22 +51,11 @@ void D3DRenderer::RenderFrame(Timer& t)
 
 void D3DRenderer::Update(Timer& t)
 {
-	_frameResouceIndex = (_frameResouceIndex + 1) % _frameResourceCount;
-	auto& currFrameResource = _frameResources[_frameResouceIndex];
-
-	if (currFrameResource->_fence != 0 && _fence->GetCompletedValue() < currFrameResource->_fence)
-	{
-		HANDLE eventHandle = CreateEventEx(nullptr, nullptr, false, EVENT_ALL_ACCESS);
-		_fence->SetEventOnCompletion(currFrameResource->_fence, eventHandle);
-		WaitForSingleObject(eventHandle, INFINITE);
-		CloseHandle(eventHandle);
-	}
-
 	if (_kbd->IsKeyPressed('W'))
 		_cameraPos.z += _cameraSpeed * t.DeltaTime();
-	else if(_kbd->IsKeyPressed('S'))
+	else if (_kbd->IsKeyPressed('S'))
 		_cameraPos.z -= _cameraSpeed * t.DeltaTime();
-	else if(_kbd->IsKeyPressed('D'))
+	else if (_kbd->IsKeyPressed('D'))
 		_cameraPos.x += _cameraSpeed * t.DeltaTime();
 	else if (_kbd->IsKeyPressed('A'))
 		_cameraPos.x -= _cameraSpeed * t.DeltaTime();
@@ -77,7 +64,27 @@ void D3DRenderer::Update(Timer& t)
 	else if (_kbd->IsKeyPressed(VK_CONTROL))
 		_cameraPos.y -= _cameraSpeed * t.DeltaTime();
 
-	ConstantBuffer cb;
+	_frameResourceIndex = (_frameResourceIndex + 1) % _frameResourceCount;
+	_currFrameResource = _frameResources[_frameResourceIndex].get();
+
+	if (_currFrameResource->_fence != 0 && _fence->GetCompletedValue() < _currFrameResource->_fence)
+	{
+		HANDLE eventHandle = CreateEventEx(nullptr, nullptr, false, EVENT_ALL_ACCESS);
+		_fence->SetEventOnCompletion(_currFrameResource->_fence, eventHandle);
+		WaitForSingleObject(eventHandle, INFINITE);
+		CloseHandle(eventHandle);
+	}
+
+	auto currObjCB = _currFrameResource->_cb.get();
+	for (auto& e : _objects)
+	{
+		XMMATRIX world = XMLoadFloat4x4(&e->_world);
+
+		ConstantBuffer cb;
+		XMStoreFloat4x4(&cb.world, XMMatrixTranspose(world));
+
+		currObjCB->CopyData(e->_cbObjIndex, cb);
+	}
 
 	XMVECTOR pos = XMLoadFloat4(&_cameraPos);
 	XMVECTOR target = XMVectorZero();
@@ -86,15 +93,31 @@ void D3DRenderer::Update(Timer& t)
 	XMMATRIX view = XMMatrixLookAtLH(pos, target, up);
 	XMStoreFloat4x4(&_view, view);
 
-	XMMATRIX world = XMLoadFloat4x4(&_world);
-	world = world * XMMatrixRotationY(t.TotalTime());
-
 	XMMATRIX proj = XMLoadFloat4x4(&_proj);
-	XMMATRIX worldViewProj = world * view * proj;
 
-	XMStoreFloat4x4(&cb.WorldViewProj, XMMatrixTranspose(worldViewProj));
+	XMMATRIX viewProj = view * proj;
+	auto a = XMMatrixDeterminant(view);
+	auto b = XMMatrixDeterminant(proj);
+	auto c = XMMatrixDeterminant(viewProj);
+	XMMATRIX invView = XMMatrixInverse(&a, view);
+	XMMATRIX invProj = XMMatrixInverse(&b, proj);
+	XMMATRIX invViewProj = XMMatrixInverse(&c, viewProj);
 
-	_currFrameResource->_cb->CopyData(0, cb);
+	XMStoreFloat4x4(&_mainPassCB.View, XMMatrixTranspose(view));
+	XMStoreFloat4x4(&_mainPassCB.InvView, XMMatrixTranspose(invView));
+	XMStoreFloat4x4(&_mainPassCB.Proj, XMMatrixTranspose(proj));
+	XMStoreFloat4x4(&_mainPassCB.InvProj, XMMatrixTranspose(invProj));
+	XMStoreFloat4x4(&_mainPassCB.ViewProj, XMMatrixTranspose(viewProj));
+	XMStoreFloat4x4(&_mainPassCB.InvViewProj, XMMatrixTranspose(invViewProj));
+	_mainPassCB.EyePosW = { _cameraPos.x, _cameraPos.y, _cameraPos.z };
+	_mainPassCB.RenderTargetSize = XMFLOAT2((float)_appWidth, (float)_appHeight);
+	_mainPassCB.InvRenderTargetSize = XMFLOAT2(1.0f / _appWidth, 1.0f / _appHeight);
+	_mainPassCB.NearZ = 1.0f;
+	_mainPassCB.FarZ = 1000.0f;
+	_mainPassCB.TotalTime = t.TotalTime();
+	_mainPassCB.DeltaTime = t.DeltaTime();
+
+	_currFrameResource->_pass->CopyData(0, _mainPassCB);
 }
 
 float D3DRenderer::AspectRatio() const noexcept
@@ -275,13 +298,6 @@ void D3DRenderer::CreateDSV()
 	FlushQueue();
 }
 
-void D3DRenderer::BuildFrameResources()
-{
-	_framesResources.reserve(_frameResourceCount);
-	for (UINT i = 0; i < _frameResourceCount; i++)
-		_framesResources.push_back(std::make_unique<FrameResource>(_device.Get()));
-}
-
 void D3DRenderer::BuildInputLayout()
 {
 	std::filesystem::path shaderPath1 = std::filesystem::current_path() / "shaders" / "defaultVS.cso";
@@ -365,15 +381,16 @@ void D3DRenderer::BuildRenderItems()
 	_objects.push_back(std::move(sphere2));
 }
 
-void D3DRenderer::BuildFrameResouces()
+void D3DRenderer::BuildFrameResources()
 {
 	for (int i = 0; i < _frameResourceCount; i++)
-		_frameResources.push_back(std::make_unique<FrameResource>(_device.Get()));
+		_frameResources.push_back(std::make_unique<FrameResource>(_device.Get(), 1u, _objects.size()));
 }
 
 void D3DRenderer::BuildCbvDescriptorHeap()
 {
-	UINT descriptorHeapCount = _objects.size() * _frameResourceCount;
+	UINT descriptorHeapCount = (_objects.size() + 1) * _frameResourceCount;
+	_passCbvOffset = _frameResourceCount * _objects.size();
 
 	D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc{};
 	cbvHeapDesc.NumDescriptors = descriptorHeapCount;
@@ -390,10 +407,10 @@ void D3DRenderer::BuildConstantBuffers()
 
 	for (UINT i = 0; i < _frameResourceCount; i++)
 	{
-		auto objCB = _frameResources[_frameResouceIndex]->_cb->GetResource();
+		auto objCB = _frameResources[i]->_cb->GetResource();
 		for (UINT j = 0; j < _objects.size(); j++)
 		{
-			D3D12_GPU_VIRTUAL_ADDRESS cbAddress = _frameResources[_frameResouceIndex]->_cb->GetResource()->GetGPUVirtualAddress();
+			D3D12_GPU_VIRTUAL_ADDRESS cbAddress = objCB->GetGPUVirtualAddress();
 			cbAddress += j * cbSize;
 			
 			int heapIndex = i * _objects.size() + j;
@@ -407,18 +424,38 @@ void D3DRenderer::BuildConstantBuffers()
 			_device->CreateConstantBufferView(&cbvDesc, handle);
 		}
 	}
+
+	UINT passSize = d3dUtil::CalcConstantBufferSize(sizeof(PassBuffer));
+	for (UINT i = 0; i < _frameResourceCount; i++)
+	{
+		auto passCB = _frameResources[i]->_pass->GetResource();
+		D3D12_GPU_VIRTUAL_ADDRESS cbAddress = passCB->GetGPUVirtualAddress();
+
+		int heapIndex = _passCbvOffset + i;
+		auto handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(_cbvHeap->GetCPUDescriptorHandleForHeapStart());
+		handle.Offset(heapIndex, _cbvDescriptorSize);
+
+		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc{};
+		cbvDesc.BufferLocation = cbAddress;
+		cbvDesc.SizeInBytes = passSize;
+
+		_device->CreateConstantBufferView(&cbvDesc, handle);
+	}
 }
 
 void D3DRenderer::BuildRootSignature()
 {
-	CD3DX12_ROOT_PARAMETER slotRootParameter[1];
+	CD3DX12_ROOT_PARAMETER slotRootParameter[2];
 
-	CD3DX12_DESCRIPTOR_RANGE cbvTable;
-	cbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+	CD3DX12_DESCRIPTOR_RANGE cbvTable[2];
+	cbvTable[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+	cbvTable[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
 
-	slotRootParameter[0].InitAsDescriptorTable(1, &cbvTable);
+	slotRootParameter[0].InitAsDescriptorTable(1, &cbvTable[0]);
+	slotRootParameter[1].InitAsDescriptorTable(1, &cbvTable[1]);
 
-	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(1, slotRootParameter, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(2, slotRootParameter,
+	 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 	ComPtr<ID3DBlob> serializedRootSig = nullptr;
 	ComPtr<ID3DBlob> errorBlob = nullptr;
@@ -437,7 +474,7 @@ void D3DRenderer::BuildRootSignature()
 		0,
 		serializedRootSig->GetBufferPointer(),
 		serializedRootSig->GetBufferSize(),
-		IID_PPV_ARGS(&_rootSignature)
+		IID_PPV_ARGS(_rootSignature.GetAddressOf())
 	));
 }
 
@@ -557,8 +594,8 @@ void D3DRenderer::ChangeResourceState(
 void D3DRenderer::BeginFrame()
 {
 
-	ThrowIfFailed(_frameResources[_frameResouceIndex]->_cmdAlloc->Reset());
-	ThrowIfFailed(_cmdList->Reset(_frameResources[_frameResouceIndex]->_cmdAlloc.Get(), _pso.Get()));
+	ThrowIfFailed(_currFrameResource->_cmdAlloc->Reset());
+	ThrowIfFailed(_cmdList->Reset(_currFrameResource->_cmdAlloc.Get(), _pso.Get()));
 
 	ChangeResourceState(GetCurrBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 }
@@ -580,6 +617,11 @@ void D3DRenderer::DrawFrame()
 
 	_cmdList->SetGraphicsRootSignature(_rootSignature.Get());
 
+	int passCbvIndex = _passCbvOffset + _frameResourceIndex;
+	auto passCbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(_cbvHeap->GetGPUDescriptorHandleForHeapStart());
+	passCbvHandle.Offset(passCbvIndex, _cbvDescriptorSize);
+	_cmdList->SetGraphicsRootDescriptorTable(1, passCbvHandle);
+
 	for (auto& ri : _objects)
 	{
 		auto vbv = ri->_mesh->VertexBufferView();
@@ -589,13 +631,12 @@ void D3DRenderer::DrawFrame()
 		_cmdList->IASetIndexBuffer(&ibv);
 		_cmdList->IASetPrimitiveTopology(ri->_primitiveType);
 
-		UINT cbvIndex = _frameResouceIndex * (UINT)_objects.size() + ri->_cbObjIndex;
+		UINT cbvIndex = _frameResourceIndex * (UINT)_objects.size() + ri->_cbObjIndex;
 		auto cbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(_cbvHeap->GetGPUDescriptorHandleForHeapStart());
 		cbvHandle.Offset(cbvIndex, _cbvDescriptorSize);
 
 		_cmdList->SetGraphicsRootDescriptorTable(0, cbvHandle);
 
-		//_cmdList->SetPipelineState(_pso.Get());
 		_cmdList->DrawIndexedInstanced(ri->_indexCount, 1u, ri->_startIndex, ri->_baseVertex, 0u);
 	}
 	
@@ -609,5 +650,5 @@ void D3DRenderer::EndFrame()
 	_swapChain->Present(0, 0);
 	_currBackBuffer = (_currBackBuffer + 1) % bufferCount;
 
-	_frameResources[_frameResouceIndex]->_fence = ++_currFence;
+	_currFrameResource->_fence = ++_currFence;
 }

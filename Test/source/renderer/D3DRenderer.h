@@ -12,7 +12,7 @@ class D3DRenderer
 private:
 	struct FrameResource
 	{
-		FrameResource(ID3D12Device* device, UINT cbCount = 1)
+		FrameResource(ID3D12Device* device, UINT passCount = 1u, UINT cbCount = 1u)
 		{
 			ThrowIfFailed(device->CreateCommandAllocator(
 				D3D12_COMMAND_LIST_TYPE_DIRECT,
@@ -20,6 +20,7 @@ private:
 			));
 
 			_cb = std::make_unique<d3dUtil::UploadBuffer<ConstantBuffer>>(device, cbCount, true);
+			_pass = std::make_unique<d3dUtil::UploadBuffer<PassBuffer>>(device, passCount, true);
 		}
 		FrameResource(const FrameResource&) = delete;
 		FrameResource& operator=(const FrameResource&) = delete;
@@ -27,6 +28,7 @@ private:
 
 		ComPtr<ID3D12CommandAllocator> _cmdAlloc;
 		std::unique_ptr<d3dUtil::UploadBuffer<ConstantBuffer>> _cb = nullptr;
+		std::unique_ptr<d3dUtil::UploadBuffer<PassBuffer>> _pass = nullptr;
 		UINT64 _fence = 0u;
 	};
 
@@ -68,11 +70,10 @@ private:
 	void CreateRTV();
 	void CreateDSV();
 
-	void BuildFrameResources();
 	void BuildInputLayout();
 	void BuildGeometry();
 	void BuildRenderItems();
-	void BuildFrameResouces();
+	void BuildFrameResources();
 	void BuildCbvDescriptorHeap();
 	void BuildConstantBuffers();
 	void BuildRootSignature();
@@ -144,17 +145,14 @@ private:
 	
 	static constexpr int _frameResourceCount = 3;
 	std::vector<std::unique_ptr<FrameResource>> _frameResources;
-	int _frameResouceIndex = 0u;
+	FrameResource* _currFrameResource = nullptr;
+	int _frameResourceIndex = 0u;
 
+	PassBuffer _mainPassCB;
+	UINT _passCbvOffset = 0u;
 	std::unique_ptr<d3dUtil::UploadBuffer<ConstantBuffer>> _constantBuffer;
 	ComPtr<ID3D12DescriptorHeap> _cbvHeap;
 
 	ComPtr<ID3D12PipelineState> _pso;
 	ComPtr<ID3D12RootSignature> _rootSignature;
-
-	static const UINT _frameResourceCount = 3u;
-	std::vector<std::unique_ptr<FrameResource>> _framesResources;
-	UINT _currFrameResourceIndex = 0u;
-	FrameResource* _currFrameResource = nullptr;
-	
 };
