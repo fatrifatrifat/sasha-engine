@@ -345,7 +345,7 @@ void D3DRenderer::BuildGeometry()
 		vertices[i].Color = XMFLOAT4(Colors::LightPink);
 	}
 
-	for (size_t i = 0; i < sphere2.Vertices.size(); i++)
+	for (size_t i = sphere1.Vertices.size(); i < sphere2.Vertices.size(); i++)
 	{
 		vertices[i].Pos = sphere2.Vertices[i].Position;
 		vertices[i].Color = XMFLOAT4(Colors::BlueViolet);
@@ -370,6 +370,7 @@ void D3DRenderer::BuildRenderItems()
 	sphere1->_indexCount = sphere1->_mesh->_subGeometry["sphere1"]._indexCount;
 	sphere1->_startIndex = sphere1->_mesh->_subGeometry["sphere1"]._startIndexLocation;
 	sphere1->_baseVertex = sphere1->_mesh->_subGeometry["sphere1"]._baseVertexLocation;
+	XMStoreFloat4x4(&sphere1->_world, XMMatrixTranslation(0.f, 1.f, 0.f));
 	_objects.push_back(std::move(sphere1));
 
 	auto sphere2 = std::make_unique<RenderItem>();
@@ -637,6 +638,7 @@ void D3DRenderer::DrawFrame()
 
 		_cmdList->SetGraphicsRootDescriptorTable(0, cbvHandle);
 
+		//_cmdList->SetPipelineState(_pso.Get());
 		_cmdList->DrawIndexedInstanced(ri->_indexCount, 1u, ri->_startIndex, ri->_baseVertex, 0u);
 	}
 	
@@ -651,4 +653,6 @@ void D3DRenderer::EndFrame()
 	_currBackBuffer = (_currBackBuffer + 1) % bufferCount;
 
 	_currFrameResource->_fence = ++_currFence;
+
+	_cmdQueue->Signal(_fence.Get(), _currFence);
 }
