@@ -15,6 +15,13 @@ namespace d3dUtil
 		return (size + 255) & ~255;
 	}
 
+	inline DirectX::XMFLOAT4X4 GetTranslation(float x, float y, float z)
+	{
+		DirectX::XMFLOAT4X4 mat;
+		DirectX::XMStoreFloat4x4(&mat, DirectX::XMMatrixTranslation(x, y, z));
+		return mat;
+	}
+
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateBuffer(ID3D12Device* device,
 		ID3D12GraphicsCommandList* cmdList,
 		Microsoft::WRL::ComPtr<ID3D12Resource>& uploadBuffer,

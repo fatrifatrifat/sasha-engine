@@ -133,6 +133,7 @@ void D3DRenderer::SetAppSize(int w, int h) noexcept
 
 void D3DRenderer::CreateDevice()
 {
+	// Enabling the debugging layer so we can more easily debug if something goes wrong
 	#if defined (DEBUG) || defined (_DEBUG)
 	{
 		ComPtr<ID3D12Debug> debugLayer;
@@ -141,14 +142,17 @@ void D3DRenderer::CreateDevice()
 	}
 	#endif
 
+	// Creating the factory for DXGI objects like SwapChain
 	ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&_factory)));
 
+	// Creating the device, basically the interface that let's you create of interfaces specific to d3d
 	ThrowIfFailed(D3D12CreateDevice(
 		nullptr,
 		D3D_FEATURE_LEVEL_11_0,
 		IID_PPV_ARGS(&_device)
 	));
 
+	// Checking the MSAA4x quality level
 	D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS qualityLevels{};
 	qualityLevels.Flags = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
 	qualityLevels.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -164,17 +168,20 @@ void D3DRenderer::CreateDevice()
 
 void D3DRenderer::CreateCmdObjs()
 {
+	// Creating the command queue which will contain the lists of command that was sent to the GPU
 	D3D12_COMMAND_QUEUE_DESC cqDesc{};
 	cqDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	cqDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
 	ThrowIfFailed(_device->CreateCommandQueue(&cqDesc, IID_PPV_ARGS(&_cmdQueue)));
 
+	// Creating the command allocator which will let you allocate memory of command lists
 	ThrowIfFailed(_device->CreateCommandAllocator(
 		D3D12_COMMAND_LIST_TYPE_DIRECT,
 		IID_PPV_ARGS(_cmdAlloc.GetAddressOf())
 	));
 
+	// Creating the command list which will contain the list of commands that will the sent to the command queue
 	ThrowIfFailed(_device->CreateCommandList(
 		0,
 		D3D12_COMMAND_LIST_TYPE_DIRECT,
@@ -185,6 +192,7 @@ void D3DRenderer::CreateCmdObjs()
 
 	ThrowIfFailed(_cmdList->Close());
 
+	// Creating a fence object so we can synchronize the CPU and GPU
 	ThrowIfFailed(_device->CreateFence(
 		0u, 
 		D3D12_FENCE_FLAG_NONE,
@@ -194,6 +202,7 @@ void D3DRenderer::CreateCmdObjs()
 
 void D3DRenderer::CreateSwapChain()
 {
+	// Creating the SwapChain object to be able to access and swap between render targets that we will show as frames
 	DXGI_SWAP_CHAIN_DESC scDesc;
 	scDesc.BufferDesc.Height = _appHeight;
 	scDesc.BufferDesc.Width = _appWidth;
@@ -222,10 +231,12 @@ void D3DRenderer::CreateSwapChain()
 
 void D3DRenderer::CreateDescriptorHeaps()
 {
+	// Getting the size of a render target view descriptor (rtv), depth stencil view (dsv) and, constant buffer view, shader resource view and UAV
 	_rtvDescriptorSize = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	_dsvDescriptorSize = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 	_cbvDescriptorSize = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
+	// Creating descriptor heaps for the rtv and dsv which will contain rtvs and dsv descriptor that will be bind to the GPU pipeline
 	D3D12_DESCRIPTOR_HEAP_DESC rtvDesc{};
 	rtvDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	rtvDesc.NumDescriptors = bufferCount;
@@ -243,6 +254,7 @@ void D3DRenderer::CreateDescriptorHeaps()
 
 void D3DRenderer::CreateRTV()
 {
+	// Creating a rtv with every buffer held by the SwapChain
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvBegHandle(_rtvHeap->GetCPUDescriptorHandleForHeapStart());
 	for (int i = 0; i < bufferCount; i++)
 	{
@@ -254,6 +266,7 @@ void D3DRenderer::CreateRTV()
 
 void D3DRenderer::CreateDSV()
 {
+	// Creating the depth stencil view for the depth stencil buffer
 	const CD3DX12_HEAP_PROPERTIES heapProperties(D3D12_HEAP_TYPE_DEFAULT);
 	const CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC
 		::Tex2D(
@@ -285,6 +298,7 @@ void D3DRenderer::CreateDSV()
 
 	ChangeResourceState(_depthStencilBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
+	// Initialize the viewport and scissors rectangle
 	_vp.MaxDepth = 1.f;
 	_vp.MinDepth = 0.f;
 	_vp.Height = static_cast<float>(_appHeight);
@@ -300,12 +314,14 @@ void D3DRenderer::CreateDSV()
 
 void D3DRenderer::BuildInputLayout()
 {
+	// Getting and compiling the shaders
 	std::filesystem::path shaderPath1 = std::filesystem::current_path() / "shaders" / "defaultVS.cso";
 	std::filesystem::path shaderPath2 = std::filesystem::current_path() / "shaders" / "defaultPS.cso";
 
 	ThrowIfFailed(D3DReadFileToBlob(shaderPath1.c_str(), &_vertexShader));
 	ThrowIfFailed(D3DReadFileToBlob(shaderPath2.c_str(), &_pixelShader));
 
+	// Creating the input layout
 	_inputLayoutDesc =
 	{
 		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
@@ -315,18 +331,61 @@ void D3DRenderer::BuildInputLayout()
 
 void D3DRenderer::BuildGeometry()
 {
-	// Building vertex buffer
+	// Concatenating every vertices in the same array as well as for the indices for more efficient draw calls with a technique called instancing
 	GeometryGenerator g;
 	GeometryGenerator::MeshData sphere1 = g.CreateGeosphere(1, 3);
-	GeometryGenerator::MeshData sphere2 = g.CreateBox(1, 1, 1, 0);
+	GeometryGenerator::MeshData sphere2 = g.CreateGeosphere(1, 3);
 
-	UINT sphere1VertexOffset = 0u;
-	UINT sphere1IndexOffset = 0u;
+	std::vector<ObjectDescriptor> objDesc =
+	{
+		{"sphere1", [&] {return g.CreateGeosphere(1, 3); }},
+		{"sphere2", [&] {return g.CreateBox(1, 1, 1, 4); }, XMFLOAT4(Colors::LightCyan), d3dUtil::GetTranslation(0.f, +1.f, 0.f)},
+		{"sphere3", [&] {return g.CreateBox(1, 1, 1, 4); }, XMFLOAT4(Colors::LightCyan), d3dUtil::GetTranslation(0.f, -1.f, 0.f)},
+		{"sphere4", [&] {return g.CreateBox(1, 1, 1, 4); }, XMFLOAT4(Colors::LightCyan), d3dUtil::GetTranslation(+1.f, 0.f, 0.f)},
+		{"sphere5", [&] {return g.CreateBox(1, 1, 1, 4); }, XMFLOAT4(Colors::LightCyan), d3dUtil::GetTranslation(-1.f, 0.f, 0.f)},
+		{"sphere6", [&] {return g.CreateBox(1, 1, 1, 4); }, XMFLOAT4(Colors::LightCyan), d3dUtil::GetTranslation(0.f, 0.f, -1.f)},
+		{"sphere7", [&] {return g.CreateBox(1, 1, 1, 4); }, XMFLOAT4(Colors::LightCyan), d3dUtil::GetTranslation(0.f, 0.f, +1.f)},
+	};
 
-	UINT sphere2VertexOffset = (UINT)sphere1.Vertices.size();
+	std::vector<Vertex> vertices;
+	std::vector<std::uint16_t> indices;
+	std::unordered_map<std::string, SubmeshGeometry> submeshes;
+
+	UINT vertexOffset = 0u;
+	UINT indexOffset = 0u;
+
+	for (const auto& obj : objDesc)
+	{
+		auto mesh = obj.shapeFn();
+
+		SubmeshGeometry submesh;
+
+		submesh._indexCount = (UINT)mesh.Indices32.size();
+		submesh._baseVertexLocation = (UINT)vertices.size();
+		submesh._startIndexLocation = (UINT)indices.size();
+
+		for (const auto& v : mesh.Vertices)
+		{
+			Vertex vertex;
+			vertex.Pos = v.Position;
+			vertex.Color = obj.color;
+			vertices.push_back(vertex);
+		}
+
+		indices.insert(std::end(indices), std::begin(mesh.GetIndices16()), std::end(mesh.GetIndices16()));
+
+		submeshes[obj.name] = submesh;
+		_objDescriptor.push_back(obj);
+	}
+
+	auto meshGeo = std::make_unique<MeshGeometry>(_device.Get(), _cmdList.Get(), vertices, indices);
+	meshGeo->_subGeometry = std::move(submeshes);
+	_meshes["scene1"] = std::move(meshGeo);
+
+	/*UINT sphere2VertexOffset = (UINT)sphere1.Vertices.size();
 	UINT sphere2IndexOffset = (UINT)sphere1.Indices32.size();
 
-	SubmeshGeometry spheres[2];
+	SubmeshGeometry spheres[3];
 	spheres[0]._indexCount = (UINT)sphere1.Indices32.size();
 	spheres[0]._startIndexLocation = sphere1IndexOffset;
 	spheres[0]._baseVertexLocation = sphere1VertexOffset;
@@ -339,18 +398,17 @@ void D3DRenderer::BuildGeometry()
 
 	std::vector<Vertex> vertices(totalVertex);
 
-
-	for (size_t i = 0; i < sphere1.Vertices.size(); i++)
+	int k = 0;
+	for (size_t i = 0; i < sphere1.Vertices.size(); i++, k++)
 	{
-		vertices[i].Pos = sphere1.Vertices[i].Position;
-		vertices[i].Color = XMFLOAT4(Colors::LightPink);
+		vertices[k].Pos = sphere1.Vertices[i].Position;
+		vertices[k].Color = XMFLOAT4(Colors::LightPink);
 	}
 
-	for (size_t i = 0; i < sphere2.Vertices.size(); i++)
+	for (size_t i = 0; i < sphere2.Vertices.size(); i++, k++)
 	{
-		size_t destIndex = sphere1.Vertices.size() + i;
-		vertices[destIndex].Pos = sphere2.Vertices[i].Position;
-		vertices[destIndex].Color = XMFLOAT4(Colors::BlueViolet);
+		vertices[k].Pos = sphere2.Vertices[i].Position;
+		vertices[k].Color = XMFLOAT4(Colors::BlueViolet);
 	}
 
 	std::vector<std::uint16_t> indices;
@@ -361,12 +419,13 @@ void D3DRenderer::BuildGeometry()
 	ob->_subGeometry["sphere1"] = spheres[0];
 	ob->_subGeometry["sphere2"] = spheres[1];
 
-	_meshes["spheres"] = std::move(ob);
+	_meshes["spheres"] = std::move(ob);*/
 }
 
 void D3DRenderer::BuildRenderItems()
 {
-	auto sphere1 = std::make_unique<RenderItem>();
+	// Getting the array of vertices and indices and making separate drawable objects out of them
+	/*auto sphere1 = std::make_unique<RenderItem>();
 	sphere1->_cbObjIndex = 0;
 	sphere1->_mesh = _meshes["spheres"].get();
 	sphere1->_indexCount = sphere1->_mesh->_subGeometry["sphere1"]._indexCount;
@@ -381,18 +440,40 @@ void D3DRenderer::BuildRenderItems()
 	sphere2->_indexCount = sphere2->_mesh->_subGeometry["sphere2"]._indexCount;
 	sphere2->_startIndex = sphere2->_mesh->_subGeometry["sphere2"]._startIndexLocation;
 	sphere2->_baseVertex = sphere2->_mesh->_subGeometry["sphere2"]._baseVertexLocation;
-	_objects.push_back(std::move(sphere2));
+	_objects.push_back(std::move(sphere2));*/
+
+	auto* mesh = _meshes["scene1"].get();
+	int objIndex = 0;
+
+	for (const auto& desc : _objDescriptor)
+	{
+		auto ri = std::make_unique<RenderItem>();
+		ri->_cbObjIndex = objIndex++;
+		ri->_mesh = mesh;
+		ri->_indexCount = mesh->_subGeometry[desc.name]._indexCount;
+		ri->_startIndex = mesh->_subGeometry[desc.name]._startIndexLocation;
+		ri->_baseVertex = mesh->_subGeometry[desc.name]._baseVertexLocation;
+		ri->_world = desc.transform;
+
+		_objects.push_back(std::move(ri));
+	}
 }
 
 void D3DRenderer::BuildFrameResources()
 {
+	// Build the Frame Resources
 	for (int i = 0; i < _frameResourceCount; i++)
 		_frameResources.push_back(std::make_unique<FrameResource>(_device.Get(), 1u, _objects.size()));
 }
 
 void D3DRenderer::BuildCbvDescriptorHeap()
 {
+	// Creating the constant buffer descriptor heap
+	// Making a heap capable of holding 3n + 3 descriptors
+	// 3n so each object can have their own frame resource on each frame resource
+	// + 3 so each frame resource has access to it's global constant buffer that's non unique to each object
 	UINT descriptorHeapCount = (_objects.size() + 1) * _frameResourceCount;
+	// Getting the index at which the global constant buffers are, right after all the unique constant buffers
 	_passCbvOffset = _frameResourceCount * _objects.size();
 
 	D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc{};
@@ -406,31 +487,35 @@ void D3DRenderer::BuildCbvDescriptorHeap()
 
 void D3DRenderer::BuildConstantBuffers()
 {
+	// Building the constant buffers at the place of each descriptor inside the heap created earlier
+	// Getting the size of both cbs padded ceiled to a multiple of 256 for padding reasons on the shader and GPU side
 	UINT cbSize = d3dUtil::CalcConstantBufferSize(sizeof(ConstantBuffer));
+	UINT passSize = d3dUtil::CalcConstantBufferSize(sizeof(PassBuffer));
 
 	for (UINT i = 0; i < _frameResourceCount; i++)
 	{
+		// Get the constant buffer from the current frame resource
 		auto objCB = _frameResources[i]->_cb->GetResource();
 		for (UINT j = 0; j < _objects.size(); j++)
 		{
+			// For each object, get the virtual address of the constant buffer and increment to access the jth object's cb
 			D3D12_GPU_VIRTUAL_ADDRESS cbAddress = objCB->GetGPUVirtualAddress();
 			cbAddress += j * cbSize;
 			
+			// Get the index on the heap that contains the constant buffer for every object and get a handle to the right position of the constant buffer
 			int heapIndex = i * _objects.size() + j;
 			auto handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(_cbvHeap->GetCPUDescriptorHandleForHeapStart());
 			handle.Offset(heapIndex, _cbvDescriptorSize);
 
+			// Create constant buffer view
 			D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc{};
 			cbvDesc.BufferLocation = cbAddress;
 			cbvDesc.SizeInBytes = cbSize;
 
 			_device->CreateConstantBufferView(&cbvDesc, handle);
 		}
-	}
 
-	UINT passSize = d3dUtil::CalcConstantBufferSize(sizeof(PassBuffer));
-	for (UINT i = 0; i < _frameResourceCount; i++)
-	{
+		// Do something similar for the global constant buffers that are shared between objects in the same frame resource
 		auto passCB = _frameResources[i]->_pass->GetResource();
 		D3D12_GPU_VIRTUAL_ADDRESS cbAddress = passCB->GetGPUVirtualAddress();
 
@@ -499,7 +584,7 @@ void D3DRenderer::BuildPSO()
 		_pixelShader->GetBufferSize()
 	};
 	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
+	//psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
 	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	psoDesc.SampleMask = UINT_MAX;

@@ -3,6 +3,7 @@
 #include "../core/input/Mouse.h"
 #include "Mesh.h"
 #include "GeometryGenerator.h"
+#include <functional>
 
 using namespace Microsoft::WRL;
 using namespace DirectX;
@@ -10,6 +11,14 @@ using namespace DirectX;
 class D3DRenderer
 {
 private:
+	struct ObjectDescriptor
+	{
+		std::string name;
+		std::function<GeometryGenerator::MeshData()> shapeFn;
+		XMFLOAT4 color = XMFLOAT4(Colors::LightPink);
+		XMFLOAT4X4 transform = d3dUtil::Identity4x4();
+	};
+
 	struct FrameResource
 	{
 		FrameResource(ID3D12Device* device, UINT passCount = 1u, UINT cbCount = 1u)
@@ -141,6 +150,7 @@ private:
 	XMFLOAT4X4 _proj = d3dUtil::Identity4x4();
 
 	std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> _meshes;
+	std::vector<ObjectDescriptor> _objDescriptor;
 	std::vector<std::unique_ptr<RenderItem>> _objects;
 	
 	static constexpr int _frameResourceCount = 3;
