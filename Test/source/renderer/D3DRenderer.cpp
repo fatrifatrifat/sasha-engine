@@ -533,8 +533,10 @@ void D3DRenderer::BuildConstantBuffers()
 
 void D3DRenderer::BuildRootSignature()
 {
+	// This describes a slot for the constant buffers for the shaders
 	CD3DX12_ROOT_PARAMETER slotRootParameter[2];
 
+	// This describes the descriptor range
 	CD3DX12_DESCRIPTOR_RANGE cbvTable[2];
 	cbvTable[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
 	cbvTable[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
@@ -542,9 +544,11 @@ void D3DRenderer::BuildRootSignature()
 	slotRootParameter[0].InitAsDescriptorTable(1, &cbvTable[0]);
 	slotRootParameter[1].InitAsDescriptorTable(1, &cbvTable[1]);
 
+	// Descriptor for the root signature
 	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(2, slotRootParameter,
 	 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
+	// Serializes the root signature to create it later
 	ComPtr<ID3DBlob> serializedRootSig = nullptr;
 	ComPtr<ID3DBlob> errorBlob = nullptr;
 	HRESULT hr = D3D12SerializeRootSignature(
@@ -568,6 +572,7 @@ void D3DRenderer::BuildRootSignature()
 
 void D3DRenderer::BuildPSO()
 {
+	// Building the Pipeline State Object to prepare the GPU to get parts of the pipeline in certain ways
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
 	ZeroMemory(&psoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
 	psoDesc.InputLayout = { 
@@ -600,6 +605,7 @@ void D3DRenderer::BuildPSO()
 
 void D3DRenderer::FlushQueue()
 {
+	// Synchronizes the CPU and the GPU to a certain command list
 	_currFence++;
 	_cmdQueue->Signal(_fence.Get(), _currFence);
 
@@ -614,6 +620,8 @@ void D3DRenderer::FlushQueue()
 
 void D3DRenderer::OnResize()
 {
+	// Called whenever the size of the app is changed
+	// Also creates the render target view as well as the depth stencil view
 	FlushQueue();
 	_cmdList->Reset(_cmdAlloc.Get(), nullptr);
 
