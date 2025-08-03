@@ -24,7 +24,10 @@
     <ClCompile Include="source\core\input\Mouse.cpp" />
     <ClCompile Include="source\Main.cpp" />
     <ClCompile Include="source\renderer\D3DRenderer.cpp" />
-    <ClCompile Include="source\renderer\GeometryGenerator.cpp" />
+    <ClCompile Include="source\renderer\FrameResource.cpp" />
+    <ClCompile Include="source\renderer\geometry\GeometryGenerator.cpp" />
+    <ClCompile Include="source\renderer\geometry\GeometryLibrary.cpp" />
+    <ClCompile Include="source\renderer\Scene.cpp" />
     <ClCompile Include="source\utility\d3dUtil.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -32,8 +35,11 @@
     <ClInclude Include="source\core\input\Keyboard.h" />
     <ClInclude Include="source\core\input\Mouse.h" />
     <ClInclude Include="source\renderer\D3DRenderer.h" />
-    <ClInclude Include="source\renderer\GeometryGenerator.h" />
-    <ClInclude Include="source\renderer\Mesh.h" />
+    <ClInclude Include="source\renderer\FrameResource.h" />
+    <ClInclude Include="source\renderer\geometry\GeometryGenerator.h" />
+    <ClInclude Include="source\renderer\geometry\GeometryLibrary.h" />
+    <ClInclude Include="source\renderer\geometry\Mesh.h" />
+    <ClInclude Include="source\renderer\Scene.h" />
     <ClInclude Include="source\utility\d3dException.h" />
     <ClInclude Include="source\utility\d3dIncludes.h" />
     <ClInclude Include="source\utility\d3dUtil.h" />

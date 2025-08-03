@@ -1,5 +1,5 @@
 #pragma once
-#include "../utility/d3dUtil.h"
+#include "../../utility/d3dUtil.h"
 
 struct Vertex
 {
@@ -28,6 +28,13 @@ struct PassBuffer
 	float FarZ = 0.0f;
 	float TotalTime = 0.0f;
 	float DeltaTime = 0.0f;
+};
+
+struct ObjectInstance
+{
+	std::string meshName;         
+	DirectX::XMFLOAT4 color;                
+	DirectX::XMFLOAT4X4 transform;          
 };
 
 struct SubmeshGeometry
@@ -99,3 +106,18 @@ struct MeshGeometry
 		_indexUploader = nullptr;
 	}
 };
+
+struct RenderItem
+{
+	DirectX::XMFLOAT4X4 _world = d3dUtil::Identity4x4();
+
+	UINT _cbObjIndex = -1;
+	MeshGeometry* _mesh = nullptr;
+
+	D3D12_PRIMITIVE_TOPOLOGY _primitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+
+	UINT _indexCount = 0u;
+	UINT _startIndex = 0u;
+	UINT _baseVertex = 0u;
+};
+

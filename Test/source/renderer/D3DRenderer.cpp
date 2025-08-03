@@ -76,7 +76,7 @@ void D3DRenderer::Update(Timer& t)
 	}
 
 	auto currObjCB = _currFrameResource->_cb.get();
-	for (auto& e : _objects)
+	for (auto& e : _scene.GetRenderItems())
 	{
 		XMMATRIX world = XMLoadFloat4x4(&e->_world);
 
@@ -333,137 +333,43 @@ void D3DRenderer::BuildGeometry()
 {
 	// Concatenating every vertices in the same array as well as for the indices for more efficient draw calls with a technique called instancing
 	GeometryGenerator g;
-	GeometryGenerator::MeshData sphere1 = g.CreateGeosphere(1, 3);
-	GeometryGenerator::MeshData sphere2 = g.CreateGeosphere(1, 3);
+	auto geoSphere = g.CreateGeosphere(1.f, 3);
+	auto box = g.CreateBox(1.f, 1.f, 1.f, 0);
+	auto cylinder = g.CreateCylinder(0.5f, 0.3f, 3.f, 10, 10);
+	_geoLib.AddGeometry("box", box, XMFLOAT4(Colors::LightPink));
+	_geoLib.AddGeometry("sphere", geoSphere, XMFLOAT4(Colors::Pink));
+	_geoLib.AddGeometry("cylinder", cylinder, XMFLOAT4(Colors::DeepPink));
 
-	std::vector<ObjectDescriptor> objDesc =
-	{
-		{"sphere1", [&] {return g.CreateGeosphere(1, 3); }},
-		{"sphere2", [&] {return g.CreateBox(1, 1, 1, 4); }, XMFLOAT4(Colors::LightCyan), d3dUtil::GetTranslation(0.f, +1.f, 0.f)},
-		{"sphere3", [&] {return g.CreateBox(1, 1, 1, 4); }, XMFLOAT4(Colors::LightCyan), d3dUtil::GetTranslation(0.f, -1.f, 0.f)},
-		{"sphere4", [&] {return g.CreateBox(1, 1, 1, 4); }, XMFLOAT4(Colors::LightCyan), d3dUtil::GetTranslation(+1.f, 0.f, 0.f)},
-		{"sphere5", [&] {return g.CreateBox(1, 1, 1, 4); }, XMFLOAT4(Colors::LightCyan), d3dUtil::GetTranslation(-1.f, 0.f, 0.f)},
-		{"sphere6", [&] {return g.CreateBox(1, 1, 1, 4); }, XMFLOAT4(Colors::LightCyan), d3dUtil::GetTranslation(0.f, 0.f, -1.f)},
-		{"sphere7", [&] {return g.CreateBox(1, 1, 1, 4); }, XMFLOAT4(Colors::LightCyan), d3dUtil::GetTranslation(0.f, 0.f, +1.f)},
-	};
-
-	std::vector<Vertex> vertices;
-	std::vector<std::uint16_t> indices;
-	std::unordered_map<std::string, SubmeshGeometry> submeshes;
-
-	UINT vertexOffset = 0u;
-	UINT indexOffset = 0u;
-
-	for (const auto& obj : objDesc)
-	{
-		auto mesh = obj.shapeFn();
-
-		SubmeshGeometry submesh;
-
-		submesh._indexCount = (UINT)mesh.Indices32.size();
-		submesh._baseVertexLocation = (UINT)vertices.size();
-		submesh._startIndexLocation = (UINT)indices.size();
-
-		for (const auto& v : mesh.Vertices)
-		{
-			Vertex vertex;
-			vertex.Pos = v.Position;
-			vertex.Color = obj.color;
-			vertices.push_back(vertex);
-		}
-
-		indices.insert(std::end(indices), std::begin(mesh.GetIndices16()), std::end(mesh.GetIndices16()));
-
-		submeshes[obj.name] = submesh;
-		_objDescriptor.push_back(obj);
-	}
-
-	auto meshGeo = std::make_unique<MeshGeometry>(_device.Get(), _cmdList.Get(), vertices, indices);
-	meshGeo->_subGeometry = std::move(submeshes);
-	_meshes["scene1"] = std::move(meshGeo);
-
-	/*UINT sphere2VertexOffset = (UINT)sphere1.Vertices.size();
-	UINT sphere2IndexOffset = (UINT)sphere1.Indices32.size();
-
-	SubmeshGeometry spheres[3];
-	spheres[0]._indexCount = (UINT)sphere1.Indices32.size();
-	spheres[0]._startIndexLocation = sphere1IndexOffset;
-	spheres[0]._baseVertexLocation = sphere1VertexOffset;
-
-	spheres[1]._indexCount = (UINT)sphere2.Indices32.size();
-	spheres[1]._startIndexLocation = sphere2IndexOffset;
-	spheres[1]._baseVertexLocation = sphere2VertexOffset;
-
-	auto totalVertex = sphere1.Vertices.size() + sphere2.Vertices.size();
-
-	std::vector<Vertex> vertices(totalVertex);
-
-	int k = 0;
-	for (size_t i = 0; i < sphere1.Vertices.size(); i++, k++)
-	{
-		vertices[k].Pos = sphere1.Vertices[i].Position;
-		vertices[k].Color = XMFLOAT4(Colors::LightPink);
-	}
-
-	for (size_t i = 0; i < sphere2.Vertices.size(); i++, k++)
-	{
-		vertices[k].Pos = sphere2.Vertices[i].Position;
-		vertices[k].Color = XMFLOAT4(Colors::BlueViolet);
-	}
-
-	std::vector<std::uint16_t> indices;
-	indices.insert(indices.end(), std::begin(sphere1.GetIndices16()), std::end(sphere1.GetIndices16()));
-	indices.insert(indices.end(), std::begin(sphere2.GetIndices16()), std::end(sphere2.GetIndices16()));
-
-	auto ob = std::make_unique<MeshGeometry>(_device.Get(), _cmdList.Get(), vertices, indices);
-	ob->_subGeometry["sphere1"] = spheres[0];
-	ob->_subGeometry["sphere2"] = spheres[1];
-
-	_meshes["spheres"] = std::move(ob);*/
+	// Once all are added:
+	_geoLib.Upload(_device.Get(), _cmdList.Get());
 }
 
 void D3DRenderer::BuildRenderItems()
 {
 	// Getting the array of vertices and indices and making separate drawable objects out of them
-	/*auto sphere1 = std::make_unique<RenderItem>();
-	sphere1->_cbObjIndex = 0;
-	sphere1->_mesh = _meshes["spheres"].get();
-	sphere1->_indexCount = sphere1->_mesh->_subGeometry["sphere1"]._indexCount;
-	sphere1->_startIndex = sphere1->_mesh->_subGeometry["sphere1"]._startIndexLocation;
-	sphere1->_baseVertex = sphere1->_mesh->_subGeometry["sphere1"]._baseVertexLocation;
-	XMStoreFloat4x4(&sphere1->_world, XMMatrixTranslation(0.f, 1.f, 0.f));
-	_objects.push_back(std::move(sphere1));
-
-	auto sphere2 = std::make_unique<RenderItem>();
-	sphere2->_cbObjIndex = 1;
-	sphere2->_mesh = _meshes["spheres"].get();
-	sphere2->_indexCount = sphere2->_mesh->_subGeometry["sphere2"]._indexCount;
-	sphere2->_startIndex = sphere2->_mesh->_subGeometry["sphere2"]._startIndexLocation;
-	sphere2->_baseVertex = sphere2->_mesh->_subGeometry["sphere2"]._baseVertexLocation;
-	_objects.push_back(std::move(sphere2));*/
-
-	auto* mesh = _meshes["scene1"].get();
-	int objIndex = 0;
-
-	for (const auto& desc : _objDescriptor)
+	for (int i = 0; i < 5; i++)
 	{
-		auto ri = std::make_unique<RenderItem>();
-		ri->_cbObjIndex = objIndex++;
-		ri->_mesh = mesh;
-		ri->_indexCount = mesh->_subGeometry[desc.name]._indexCount;
-		ri->_startIndex = mesh->_subGeometry[desc.name]._startIndexLocation;
-		ri->_baseVertex = mesh->_subGeometry[desc.name]._baseVertexLocation;
-		ri->_world = desc.transform;
-
-		_objects.push_back(std::move(ri));
+		float xOffset = static_cast<float>(i);
+		for (int j = 0; j < 5; j++)
+		{
+			float yOffset = static_cast<float>(j);
+			for (int k = 0; k < 5; k++)
+			{
+				float zOffset = static_cast<float>(k);
+				_scene.AddInstance("sphere", XMFLOAT4(Colors::LightPink), d3dUtil::GetTranslation(xOffset, yOffset, zOffset));
+				//_scene.AddInstance("box", XMFLOAT4(Colors::HotPink), d3dUtil::GetTranslation(xOffset, yOffset, zOffset));
+				//_scene.AddInstance("cylinder", XMFLOAT4(Colors::HotPink), d3dUtil::GetTranslation(xOffset, yOffset - 1.f, zOffset));
+			}
+		}
 	}
+	_scene.BuildRenderItems(_geoLib);
 }
 
 void D3DRenderer::BuildFrameResources()
 {
 	// Build the Frame Resources
 	for (int i = 0; i < _frameResourceCount; i++)
-		_frameResources.push_back(std::make_unique<FrameResource>(_device.Get(), 1u, _objects.size()));
+		_frameResources.push_back(std::make_unique<FrameResource>(_device.Get(), 1u, _scene.GetRenderItems().size()));
 }
 
 void D3DRenderer::BuildCbvDescriptorHeap()
@@ -472,9 +378,9 @@ void D3DRenderer::BuildCbvDescriptorHeap()
 	// Making a heap capable of holding 3n + 3 descriptors
 	// 3n so each object can have their own frame resource on each frame resource
 	// + 3 so each frame resource has access to it's global constant buffer that's non unique to each object
-	UINT descriptorHeapCount = (_objects.size() + 1) * _frameResourceCount;
+	UINT descriptorHeapCount = (_scene.GetRenderItems().size() + 1) * _frameResourceCount;
 	// Getting the index at which the global constant buffers are, right after all the unique constant buffers
-	_passCbvOffset = _frameResourceCount * _objects.size();
+	_passCbvOffset = _frameResourceCount * _scene.GetRenderItems().size();
 
 	D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc{};
 	cbvHeapDesc.NumDescriptors = descriptorHeapCount;
@@ -496,14 +402,14 @@ void D3DRenderer::BuildConstantBuffers()
 	{
 		// Get the constant buffer from the current frame resource
 		auto objCB = _frameResources[i]->_cb->GetResource();
-		for (UINT j = 0; j < _objects.size(); j++)
+		for (UINT j = 0; j < _scene.GetRenderItems().size(); j++)
 		{
 			// For each object, get the virtual address of the constant buffer and increment to access the jth object's cb
 			D3D12_GPU_VIRTUAL_ADDRESS cbAddress = objCB->GetGPUVirtualAddress();
 			cbAddress += j * cbSize;
 			
 			// Get the index on the heap that contains the constant buffer for every object and get a handle to the right position of the constant buffer
-			int heapIndex = i * _objects.size() + j;
+			int heapIndex = i * _scene.GetRenderItems().size() + j;
 			auto handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(_cbvHeap->GetCPUDescriptorHandleForHeapStart());
 			handle.Offset(heapIndex, _cbvDescriptorSize);
 
@@ -589,7 +495,7 @@ void D3DRenderer::BuildPSO()
 		_pixelShader->GetBufferSize()
 	};
 	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	//psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
+	psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
 	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	psoDesc.SampleMask = UINT_MAX;
@@ -719,7 +625,7 @@ void D3DRenderer::DrawFrame()
 	passCbvHandle.Offset(passCbvIndex, _cbvDescriptorSize);
 	_cmdList->SetGraphicsRootDescriptorTable(1, passCbvHandle);
 
-	for (const auto& ri : _objects)
+	for (const auto& ri : _scene.GetRenderItems())
 	{
 		auto vbv = ri->_mesh->VertexBufferView();
 		auto ibv = ri->_mesh->IndexBufferView();
@@ -728,7 +634,7 @@ void D3DRenderer::DrawFrame()
 		_cmdList->IASetIndexBuffer(&ibv);
 		_cmdList->IASetPrimitiveTopology(ri->_primitiveType);
 
-		UINT cbvIndex = _frameResourceIndex * (UINT)_objects.size() + ri->_cbObjIndex;
+		UINT cbvIndex = _frameResourceIndex * (UINT)_scene.GetRenderItems().size() + ri->_cbObjIndex;
 		auto cbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(_cbvHeap->GetGPUDescriptorHandleForHeapStart());
 		cbvHandle.Offset(cbvIndex, _cbvDescriptorSize);
 

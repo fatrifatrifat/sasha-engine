@@ -24,6 +24,9 @@
     <Filter Include="source\core\input">
       <UniqueIdentifier>{6d23e60e-937a-4337-b2bb-c67b1c378c65}</UniqueIdentifier>
     </Filter>
+    <Filter Include="source\renderer\geometry">
+      <UniqueIdentifier>{48325b10-5feb-4ad6-b594-ab4bd6f9d8c0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\renderer\D3DRenderer.cpp">
@@ -44,7 +47,16 @@
     <ClCompile Include="source\core\input\Mouse.cpp">
       <Filter>source\core\input</Filter>
     </ClCompile>
-    <ClCompile Include="source\renderer\GeometryGenerator.cpp">
+    <ClCompile Include="source\renderer\FrameResource.cpp">
+      <Filter>source\renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="source\renderer\geometry\GeometryGenerator.cpp">
+      <Filter>source\renderer\geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="source\renderer\geometry\GeometryLibrary.cpp">
+      <Filter>source\renderer\geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="source\renderer\Scene.cpp">
       <Filter>source\renderer</Filter>
     </ClCompile>
   </ItemGroup>
@@ -70,16 +82,25 @@
     <ClInclude Include="source\utility\d3dUtil.h">
       <Filter>source\utility</Filter>
     </ClInclude>
-    <ClInclude Include="source\renderer\Mesh.h">
-      <Filter>source\renderer</Filter>
-    </ClInclude>
     <ClInclude Include="source\core\input\Keyboard.h">
       <Filter>source\core\input</Filter>
     </ClInclude>
     <ClInclude Include="source\core\input\Mouse.h">
       <Filter>source\core\input</Filter>
     </ClInclude>
-    <ClInclude Include="source\renderer\GeometryGenerator.h">
+    <ClInclude Include="source\renderer\FrameResource.h">
+      <Filter>source\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="source\renderer\geometry\GeometryGenerator.h">
+      <Filter>source\renderer\geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="source\renderer\geometry\Mesh.h">
+      <Filter>source\renderer\geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="source\renderer\geometry\GeometryLibrary.h">
+      <Filter>source\renderer\geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="source\renderer\Scene.h">
       <Filter>source\renderer</Filter>
     </ClInclude>
   </ItemGroup>

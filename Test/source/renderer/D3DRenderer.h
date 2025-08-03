@@ -1,8 +1,7 @@
-#include "../utility/d3dUtil.h"
 #include "../core/input/Keyboard.h"
 #include "../core/input/Mouse.h"
-#include "Mesh.h"
-#include "GeometryGenerator.h"
+#include "Scene.h"
+#include "FrameResource.h"
 #include <functional>
 
 using namespace Microsoft::WRL;
@@ -15,46 +14,9 @@ private:
 	{
 		std::string name;
 		std::function<GeometryGenerator::MeshData()> shapeFn;
-		XMFLOAT4 color = XMFLOAT4(Colors::LightPink);
+		XMFLOAT4 color = XMFLOAT4(Colors::Black);
 		XMFLOAT4X4 transform = d3dUtil::Identity4x4();
 	};
-
-	struct FrameResource
-	{
-		FrameResource(ID3D12Device* device, UINT passCount = 1u, UINT cbCount = 1u)
-		{
-			ThrowIfFailed(device->CreateCommandAllocator(
-				D3D12_COMMAND_LIST_TYPE_DIRECT,
-				IID_PPV_ARGS(_cmdAlloc.GetAddressOf())
-			));
-
-			_cb = std::make_unique<d3dUtil::UploadBuffer<ConstantBuffer>>(device, cbCount, true);
-			_pass = std::make_unique<d3dUtil::UploadBuffer<PassBuffer>>(device, passCount, true);
-		}
-		FrameResource(const FrameResource&) = delete;
-		FrameResource& operator=(const FrameResource&) = delete;
-		~FrameResource() = default;
-
-		ComPtr<ID3D12CommandAllocator> _cmdAlloc;
-		std::unique_ptr<d3dUtil::UploadBuffer<ConstantBuffer>> _cb = nullptr;
-		std::unique_ptr<d3dUtil::UploadBuffer<PassBuffer>> _pass = nullptr;
-		UINT64 _fence = 0u;
-	};
-
-	struct RenderItem
-	{
-		XMFLOAT4X4 _world = d3dUtil::Identity4x4();
-
-		UINT _cbObjIndex = -1;
-		MeshGeometry* _mesh = nullptr;
-
-		D3D12_PRIMITIVE_TOPOLOGY _primitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		
-		UINT _indexCount = 0u;
-		UINT _startIndex = 0u;
-		UINT _baseVertex = 0u;
-	};
-
 public:
 	D3DRenderer(HWND wh, int w, int h);
 	~D3DRenderer();
@@ -149,9 +111,8 @@ private:
 	XMFLOAT4X4 _view = d3dUtil::Identity4x4();
 	XMFLOAT4X4 _proj = d3dUtil::Identity4x4();
 
-	std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> _meshes;
-	std::vector<ObjectDescriptor> _objDescriptor;
-	std::vector<std::unique_ptr<RenderItem>> _objects;
+	GeometryLibrary _geoLib;
+	Scene _scene;
 	
 	static constexpr int _frameResourceCount = 3;
 	std::vector<std::unique_ptr<FrameResource>> _frameResources;
