@@ -6,6 +6,7 @@ class GeometryLibrary
 {
 public:
     void AddGeometry(const std::string& name, GeometryGenerator::MeshData& mesh, const DirectX::XMFLOAT4& color);
+    void AddGeometry(const std::string& name, GeometryGenerator::MeshData& mesh);
     void Upload(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList);
 
     MeshGeometry* GetMesh();
@@ -17,5 +18,5 @@ private:
 
     std::unordered_map<std::string, SubmeshGeometry> _submeshes;
 
-    std::unique_ptr<MeshGeometry> _mesh; // Combined
+    std::unique_ptr<MeshGeometry> _mesh;
 };

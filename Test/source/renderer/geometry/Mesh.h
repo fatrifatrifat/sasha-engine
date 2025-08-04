@@ -33,7 +33,6 @@ struct PassBuffer
 struct ObjectInstance
 {
 	std::string meshName;         
-	DirectX::XMFLOAT4 color;                
 	DirectX::XMFLOAT4X4 transform;          
 };
 

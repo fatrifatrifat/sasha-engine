@@ -17,6 +17,23 @@ void GeometryLibrary::AddGeometry(const std::string& name, GeometryGenerator::Me
     _submeshes[name] = sub;
 }
 
+void GeometryLibrary::AddGeometry(const std::string& name, GeometryGenerator::MeshData& mesh)
+{
+    SubmeshGeometry sub;
+
+    sub._baseVertexLocation = static_cast<UINT>(_vertices.size());
+    sub._startIndexLocation = static_cast<UINT>(_indices.size());
+    sub._indexCount = static_cast<UINT>(mesh.Indices32.size());
+
+    for (const auto& v : mesh.Vertices)
+        _vertices.push_back({ v.Position, DirectX::XMFLOAT4(v.Color.x, v.Color.y, v.Color.z, 1.f) });
+
+    auto indices16 = mesh.GetIndices16();
+    _indices.insert(_indices.end(), indices16.begin(), indices16.end());
+
+    _submeshes[name] = sub;
+}
+
 void GeometryLibrary::Upload(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList)
 {
     _mesh = std::make_unique<MeshGeometry>(device, cmdList, _vertices, _indices);

@@ -1,5 +1,6 @@
 #include "D3DRenderer.h"
 #include <filesystem>
+#include <thread>
 
 D3DRenderer::D3DRenderer(HWND wh, int w, int h)
 	: _wndHandle(wh)
@@ -26,7 +27,7 @@ void D3DRenderer::d3dInit()
 	BuildRootSignature();
 	BuildInputLayout();
 	BuildGeometry();
-	BuildRenderItems();
+	BuildScene();
 	BuildFrameResources();
 	BuildCbvDescriptorHeap();
 	BuildConstantBuffers();
@@ -63,6 +64,8 @@ void D3DRenderer::Update(Timer& t)
 		_cameraPos.y += _cameraSpeed * t.DeltaTime();
 	else if (_kbd->IsKeyPressed(VK_CONTROL))
 		_cameraPos.y -= _cameraSpeed * t.DeltaTime();
+	else if (_kbd->IsKeyPressed(VK_F2) && _kbd->WasKeyPressedThisFrame(VK_F2))
+		_isWireFrame = !_isWireFrame;
 
 	_frameResourceIndex = (_frameResourceIndex + 1) % _frameResourceCount;
 	_currFrameResource = _frameResources[_frameResourceIndex].get();
@@ -336,32 +339,26 @@ void D3DRenderer::BuildGeometry()
 	auto geoSphere = g.CreateGeosphere(1.f, 3);
 	auto box = g.CreateBox(1.f, 1.f, 1.f, 0);
 	auto cylinder = g.CreateCylinder(0.5f, 0.3f, 3.f, 10, 10);
+	auto grid = g.CreateGrid(160.f, 160.f, 250, 250);
+	for (size_t i = 0; i < grid.Vertices.size(); i++)
+	{
+		auto& pos = grid.Vertices[i].Position;
+		pos.y = 0.3f * (pos.z * sinf(0.1f * pos.x) + pos.x * cosf(0.1f * pos.z));
+		grid.Vertices[i].Color= i % 2 ? XMFLOAT3(0.f, 0.f, 0.f) : XMFLOAT3(1.f, 1.f, 1.f);
+	}
 	_geoLib.AddGeometry("box", box, XMFLOAT4(Colors::LightPink));
 	_geoLib.AddGeometry("sphere", geoSphere, XMFLOAT4(Colors::Pink));
 	_geoLib.AddGeometry("cylinder", cylinder, XMFLOAT4(Colors::DeepPink));
+	_geoLib.AddGeometry("grid", grid);
 
 	// Once all are added:
 	_geoLib.Upload(_device.Get(), _cmdList.Get());
 }
 
-void D3DRenderer::BuildRenderItems()
+void D3DRenderer::BuildScene()
 {
-	// Getting the array of vertices and indices and making separate drawable objects out of them
-	for (int i = 0; i < 5; i++)
-	{
-		float xOffset = static_cast<float>(i);
-		for (int j = 0; j < 5; j++)
-		{
-			float yOffset = static_cast<float>(j);
-			for (int k = 0; k < 5; k++)
-			{
-				float zOffset = static_cast<float>(k);
-				_scene.AddInstance("sphere", XMFLOAT4(Colors::LightPink), d3dUtil::GetTranslation(xOffset, yOffset, zOffset));
-				//_scene.AddInstance("box", XMFLOAT4(Colors::HotPink), d3dUtil::GetTranslation(xOffset, yOffset, zOffset));
-				//_scene.AddInstance("cylinder", XMFLOAT4(Colors::HotPink), d3dUtil::GetTranslation(xOffset, yOffset - 1.f, zOffset));
-			}
-		}
-	}
+	_scene.AddInstance("grid");
+
 	_scene.BuildRenderItems(_geoLib);
 }
 
@@ -506,7 +503,11 @@ void D3DRenderer::BuildPSO()
 	psoDesc.SampleDesc.Quality = 0;
 	psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 
-	ThrowIfFailed(_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&_pso)));
+	ThrowIfFailed(_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&_pso[0])));
+
+	psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+
+	ThrowIfFailed(_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&_pso[1])));
 }
 
 void D3DRenderer::FlushQueue()
@@ -598,7 +599,12 @@ void D3DRenderer::BeginFrame()
 {
 
 	ThrowIfFailed(_currFrameResource->_cmdAlloc->Reset());
-	ThrowIfFailed(_cmdList->Reset(_currFrameResource->_cmdAlloc.Get(), _pso.Get()));
+	if (_isWireFrame)
+	{
+		ThrowIfFailed(_cmdList->Reset(_currFrameResource->_cmdAlloc.Get(), _pso[0].Get()));
+	}
+	else
+		ThrowIfFailed(_cmdList->Reset(_currFrameResource->_cmdAlloc.Get(), _pso[1].Get()));
 
 	ChangeResourceState(GetCurrBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 }

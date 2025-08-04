@@ -43,7 +43,7 @@ private:
 
 	void BuildInputLayout();
 	void BuildGeometry();
-	void BuildRenderItems();
+	void BuildScene();
 	void BuildFrameResources();
 	void BuildCbvDescriptorHeap();
 	void BuildConstantBuffers();
@@ -70,12 +70,13 @@ private:
 	int _appWidth;
 	int _appHeight;
 	HWND _wndHandle;
+	bool _isWireFrame = false;
 
 	Keyboard* _kbd = nullptr;
 	Mouse* _mouse = nullptr;
 
-	XMFLOAT4 _cameraPos = { 0.f, 0.f, -5.f, 1.f };
-	const float _cameraSpeed = 5.f;
+	XMFLOAT4 _cameraPos = { 0.f, 5.f, -5.f, 1.f };
+	const float _cameraSpeed = 25.f;
 
 	ComPtr<ID3D12Device> _device;
 	ComPtr<IDXGIFactory4> _factory;
@@ -124,6 +125,6 @@ private:
 	std::unique_ptr<d3dUtil::UploadBuffer<ConstantBuffer>> _constantBuffer;
 	ComPtr<ID3D12DescriptorHeap> _cbvHeap;
 
-	ComPtr<ID3D12PipelineState> _pso;
+	std::array<ComPtr<ID3D12PipelineState>, 2> _pso;
 	ComPtr<ID3D12RootSignature> _rootSignature;
 };
