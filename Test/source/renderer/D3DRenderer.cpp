@@ -29,8 +29,8 @@ void D3DRenderer::d3dInit()
 	BuildGeometry();
 	BuildScene();
 	BuildFrameResources();
-	BuildCbvDescriptorHeap();
-	BuildConstantBuffers();
+	//BuildCbvDescriptorHeap();
+	//BuildConstantBuffers();
 	BuildPSO();
 
 	ExecuteCmdList();
@@ -444,9 +444,10 @@ void D3DRenderer::BuildRootSignature()
 	cbvTable[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
 	cbvTable[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
 
-	slotRootParameter[0].InitAsDescriptorTable(1, &cbvTable[0]);
-	slotRootParameter[1].InitAsDescriptorTable(1, &cbvTable[1]);
-
+	//slotRootParameter[0].InitAsDescriptorTable(1, &cbvTable[0]);
+	//slotRootParameter[1].InitAsDescriptorTable(1, &cbvTable[1]);
+	slotRootParameter[0].InitAsConstantBufferView(0);
+	slotRootParameter[1].InitAsConstantBufferView(1);
 	// Descriptor for the root signature
 	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(2, slotRootParameter,
 	 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
@@ -621,15 +622,17 @@ void D3DRenderer::DrawFrame()
 	auto dsv = GetDSView();
 	_cmdList->OMSetRenderTargets(1, &currBackBufferView, true, &dsv);
 
-	ID3D12DescriptorHeap* descriptorHeaps[] = { _cbvHeap.Get() };
-	_cmdList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+	//ID3D12DescriptorHeap* descriptorHeaps[] = { _cbvHeap.Get() };
+	//_cmdList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
 	_cmdList->SetGraphicsRootSignature(_rootSignature.Get());
 
-	int passCbvIndex = _passCbvOffset + _frameResourceIndex;
-	auto passCbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(_cbvHeap->GetGPUDescriptorHandleForHeapStart());
-	passCbvHandle.Offset(passCbvIndex, _cbvDescriptorSize);
-	_cmdList->SetGraphicsRootDescriptorTable(1, passCbvHandle);
+	//int passCbvIndex = _passCbvOffset + _frameResourceIndex;
+	//auto passCbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(_cbvHeap->GetGPUDescriptorHandleForHeapStart());
+	//passCbvHandle.Offset(passCbvIndex, _cbvDescriptorSize);
+	//_cmdList->SetGraphicsRootDescriptorTable(1, passCbvHandle);
+
+	_cmdList->SetGraphicsRootConstantBufferView(1, _currFrameResource->_pass->GetResource()->GetGPUVirtualAddress());
 
 	for (const auto& ri : _scene.GetRenderItems())
 	{
@@ -640,11 +643,14 @@ void D3DRenderer::DrawFrame()
 		_cmdList->IASetIndexBuffer(&ibv);
 		_cmdList->IASetPrimitiveTopology(ri->_primitiveType);
 
-		UINT cbvIndex = _frameResourceIndex * (UINT)_scene.GetRenderItems().size() + ri->_cbObjIndex;
-		auto cbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(_cbvHeap->GetGPUDescriptorHandleForHeapStart());
-		cbvHandle.Offset(cbvIndex, _cbvDescriptorSize);
+		//UINT cbvIndex = _frameResourceIndex * (UINT)_scene.GetRenderItems().size() + ri->_cbObjIndex;
+		//auto cbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(_cbvHeap->GetGPUDescriptorHandleForHeapStart());
+		//cbvHandle.Offset(cbvIndex, _cbvDescriptorSize);
 
-		_cmdList->SetGraphicsRootDescriptorTable(0, cbvHandle);
+		//_cmdList->SetGraphicsRootDescriptorTable(0, cbvHandle);
+		auto address = _currFrameResource->_cb->GetResource()->GetGPUVirtualAddress();
+		address += ri->_cbObjIndex * d3dUtil::CalcConstantBufferSize(sizeof(ConstantBuffer));
+		_cmdList->SetGraphicsRootConstantBufferView(0, address);
 
 		_cmdList->DrawIndexedInstanced(ri->_indexCount, 1u, ri->_startIndex, ri->_baseVertex, 0u);
 	}
