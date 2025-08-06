@@ -2,7 +2,7 @@
 // GeometryGenerator.cpp by Frank Luna (C) 2011 All Rights Reserved.
 //***************************************************************************************
 
-#include "GeometryGenerator.h"
+#include "../../../include/sasha/renderer/geometry/GeometryGenerator.h"
 #include <algorithm>
 #include <fstream>
 #include <cassert>

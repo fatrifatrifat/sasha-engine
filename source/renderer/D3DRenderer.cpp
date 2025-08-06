@@ -1,4 +1,4 @@
-#include "D3DRenderer.h"
+#include "../../include/sasha/renderer/D3DRenderer.h"
 #include <filesystem>
 #include <thread>
 
@@ -87,7 +87,7 @@ void D3DRenderer::Update(Timer& t)
 			{
 				Vertex v = *(vertices + start);
 				v.Pos.y = v.Pos.y = 0.3f * ((v.Pos.z * sin(0.1f * v.Pos.x + 2.f * t.TotalTime())) + v.Pos.x * cos(0.1f * v.Pos.z + 2.f * t.TotalTime()));
-				_geoLib.GetMesh()->_vertexGPU->CopyData(start, v);
+				_geoLib.GetMesh()->_vertexGPU->CopyData((UINT)start, v);
 			}
 		};
 
@@ -106,7 +106,7 @@ void D3DRenderer::Update(Timer& t)
 	for (size_t i = _geoLib.GetSubmesh("skull")._baseVertexLocation; i < numElem; i++)
 	{
 		Vertex v = *(vertices + i);
-		_geoLib.GetMesh()->_vertexGPU->CopyData(i, v);
+		_geoLib.GetMesh()->_vertexGPU->CopyData((UINT)i, v);
 	}
 
 	auto currObjCB = _currFrameResource->_cb.get();
@@ -349,9 +349,8 @@ void D3DRenderer::CreateDSV()
 void D3DRenderer::BuildInputLayout()
 {
 	// Getting and compiling the shaders
-	std::filesystem::path shaderPath1 = std::filesystem::current_path() / "shaders" / "defaultVS.cso";
-	std::filesystem::path shaderPath2 = std::filesystem::current_path() / "shaders" / "defaultPS.cso";
-
+	std::wstring shaderPath1 = L"C:\\Users\\rifat\\source\\repos\\sasha-engine\\shaders\\defaultVS.cso";
+	std::wstring shaderPath2 = L"C:\\Users\\rifat\\source\\repos\\sasha-engine\\shaders\\defaultPS.cso";
 	ThrowIfFailed(D3DReadFileToBlob(shaderPath1.c_str(), &_vertexShader));
 	ThrowIfFailed(D3DReadFileToBlob(shaderPath2.c_str(), &_pixelShader));
 
@@ -371,7 +370,7 @@ void D3DRenderer::BuildGeometry()
 	auto box = g.CreateBox(1.f, 1.f, 1.f, 0);
 	auto cylinder = g.CreateCylinder(0.5f, 0.3f, 3.f, 10, 10);
 	auto grid = g.CreateGrid(160.f, 160.f, 100, 100);
-	auto skull = g.ReadFile("assets/models/skull.txt");
+	auto skull = g.ReadFile("C:\\Users\\rifat\\source\\repos\\sasha-engine\\assets\\models\\skull.txt");
 	for (size_t i = 0; i < grid.Vertices.size(); i++)
 	{
 		auto& pos = grid.Vertices[i].Position;
@@ -400,7 +399,7 @@ void D3DRenderer::BuildFrameResources()
 {
 	// Build the Frame Resources
 	for (int i = 0; i < _frameResourceCount; i++)
-		_frameResources.push_back(std::make_unique<FrameResource>(_device.Get(), 1u, _scene.GetRenderItems().size()));
+		_frameResources.push_back(std::make_unique<FrameResource>(_device.Get(), 1u, (UINT)_scene.GetRenderItems().size()));
 }
 
 void D3DRenderer::BuildCbvDescriptorHeap()
@@ -409,9 +408,9 @@ void D3DRenderer::BuildCbvDescriptorHeap()
 	// Making a heap capable of holding 3n + 3 descriptors
 	// 3n so each object can have their own frame resource on each frame resource
 	// + 3 so each frame resource has access to it's global constant buffer that's non unique to each object
-	UINT descriptorHeapCount = (_scene.GetRenderItems().size() + 1) * _frameResourceCount;
+	UINT descriptorHeapCount = (UINT)((_scene.GetRenderItems().size() + 1) * _frameResourceCount);
 	// Getting the index at which the global constant buffers are, right after all the unique constant buffers
-	_passCbvOffset = _frameResourceCount * _scene.GetRenderItems().size();
+	_passCbvOffset = (UINT)(_frameResourceCount * _scene.GetRenderItems().size());
 
 	D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc{};
 	cbvHeapDesc.NumDescriptors = descriptorHeapCount;
@@ -440,7 +439,7 @@ void D3DRenderer::BuildConstantBuffers()
 			cbAddress += j * cbSize;
 			
 			// Get the index on the heap that contains the constant buffer for every object and get a handle to the right position of the constant buffer
-			int heapIndex = i * _scene.GetRenderItems().size() + j;
+			int heapIndex = (int)(i * _scene.GetRenderItems().size() + j);
 			auto handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(_cbvHeap->GetCPUDescriptorHandleForHeapStart());
 			handle.Offset(heapIndex, _cbvDescriptorSize);
 

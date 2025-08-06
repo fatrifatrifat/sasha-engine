@@ -1,4 +1,4 @@
-#include "core/App.h"
+#include "../include/sasha/core/App.h"
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, int showCmd)
 {

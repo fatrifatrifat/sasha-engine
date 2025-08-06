@@ -19,66 +19,64 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="source\core\App.cpp" />
-    <ClCompile Include="source\core\input\Keyboard.cpp" />
-    <ClCompile Include="source\core\input\Mouse.cpp" />
-    <ClCompile Include="source\SashaMain.cpp" />
-    <ClCompile Include="source\renderer\D3DRenderer.cpp" />
-    <ClCompile Include="source\renderer\FrameResource.cpp" />
-    <ClCompile Include="source\renderer\geometry\GeometryGenerator.cpp" />
-    <ClCompile Include="source\renderer\geometry\GeometryLibrary.cpp" />
-    <ClCompile Include="source\renderer\Scene.cpp" />
-    <ClCompile Include="source\utility\d3dUtil.cpp" />
+    <ClCompile Include="..\app\SashaMain.cpp" />
+    <ClCompile Include="..\source\core\App.cpp" />
+    <ClCompile Include="..\source\input\Keyboard.cpp" />
+    <ClCompile Include="..\source\input\Mouse.cpp" />
+    <ClCompile Include="..\source\renderer\D3DRenderer.cpp" />
+    <ClCompile Include="..\source\renderer\FrameResource.cpp" />
+    <ClCompile Include="..\source\renderer\geometry\GeometryGenerator.cpp" />
+    <ClCompile Include="..\source\renderer\geometry\GeometryLibrary.cpp" />
+    <ClCompile Include="..\source\renderer\Scene.cpp" />
+    <ClCompile Include="..\source\utility\d3dUtil.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="source\core\App.h" />
-    <ClInclude Include="source\core\input\Keyboard.h" />
-    <ClInclude Include="source\core\input\Mouse.h" />
-    <ClInclude Include="source\renderer\D3DRenderer.h" />
-    <ClInclude Include="source\renderer\FrameResource.h" />
-    <ClInclude Include="source\renderer\geometry\GeometryGenerator.h" />
-    <ClInclude Include="source\renderer\geometry\GeometryLibrary.h" />
-    <ClInclude Include="source\renderer\geometry\Mesh.h" />
-    <ClInclude Include="source\renderer\Scene.h" />
-    <ClInclude Include="source\utility\d3dException.h" />
-    <ClInclude Include="source\utility\d3dIncludes.h" />
-    <ClInclude Include="source\utility\d3dUtil.h" />
-    <ClInclude Include="source\utility\d3dx12.h" />
-    <ClInclude Include="source\utility\Timer.h" />
+    <ClInclude Include="..\include\sasha\core\App.h" />
+    <ClInclude Include="..\include\sasha\input\Keyboard.h" />
+    <ClInclude Include="..\include\sasha\input\Mouse.h" />
+    <ClInclude Include="..\include\sasha\renderer\D3DRenderer.h" />
+    <ClInclude Include="..\include\sasha\renderer\FrameResource.h" />
+    <ClInclude Include="..\include\sasha\renderer\geometry\GeometryGenerator.h" />
+    <ClInclude Include="..\include\sasha\renderer\geometry\GeometryLibrary.h" />
+    <ClInclude Include="..\include\sasha\renderer\geometry\Mesh.h" />
+    <ClInclude Include="..\include\sasha\renderer\Scene.h" />
+    <ClInclude Include="..\include\sasha\utility\d3dException.h" />
+    <ClInclude Include="..\include\sasha\utility\d3dIncludes.h" />
+    <ClInclude Include="..\include\sasha\utility\d3dUtil.h" />
+    <ClInclude Include="..\include\sasha\utility\d3dx12.h" />
+    <ClInclude Include="..\include\sasha\utility\Timer.h" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="shaders\defaultVS.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(ProjectDir)shaders\%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(ProjectDir)shaders\%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(ProjectDir)shaders\%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(ProjectDir)shaders\%(Filename).cso</ObjectFileOutput>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.1</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.1</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
-    </FxCompile>
-    <FxCompile Include="shaders\defaultPS.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+    <Text Include="..\assets\models\car.txt" />
+    <Text Include="..\assets\models\skull.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\shaders\defaultPS.cso">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="..\shaders\defaultVS.cso" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\shaders\defaultPS.hlsl">
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(ProjectDir)shaders\%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(ProjectDir)shaders\%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(ProjectDir)shaders\%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(ProjectDir)shaders\%(Filename).cso</ObjectFileOutput>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.1</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.1</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
     </FxCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="assets\models\car.txt" />
-    <Text Include="assets\models\skull.txt" />
+    <FxCompile Include="..\shaders\defaultVS.hlsl">
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+    </FxCompile>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>

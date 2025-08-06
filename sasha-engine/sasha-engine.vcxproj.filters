@@ -1,129 +1,159 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="Header Files">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    <Filter Include="include">
+      <UniqueIdentifier>{12c0eadc-b180-4230-9a6c-74ccfc329824}</UniqueIdentifier>
     </Filter>
     <Filter Include="source">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+      <UniqueIdentifier>{3fc3d78a-0f40-4305-907a-75a82f96dd8e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="source\utility">
-      <UniqueIdentifier>{bae7920e-5364-4d7d-a271-6580fe286db2}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="source\core">
-      <UniqueIdentifier>{447ff95e-e917-4065-a59b-29517b69ebc7}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="source\renderer">
-      <UniqueIdentifier>{0343cfaf-849e-41ea-ad91-1571a21574b6}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="shaders">
-      <UniqueIdentifier>{9aae7ca6-a1b6-4876-b228-be55f95a6981}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="source\core\input">
-      <UniqueIdentifier>{6d23e60e-937a-4337-b2bb-c67b1c378c65}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="source\renderer\geometry">
-      <UniqueIdentifier>{48325b10-5feb-4ad6-b594-ab4bd6f9d8c0}</UniqueIdentifier>
+    <Filter Include="app">
+      <UniqueIdentifier>{432befad-22db-4c9d-b065-9a45e51bacf6}</UniqueIdentifier>
     </Filter>
     <Filter Include="assets">
-      <UniqueIdentifier>{7d9bbd72-d3a0-4f0c-ab17-d9fb94205a42}</UniqueIdentifier>
+      <UniqueIdentifier>{3fc6a247-87e4-46cc-a85c-44c8b697e0bf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="shaders">
+      <UniqueIdentifier>{91d48df2-7e38-4897-952f-854496d64432}</UniqueIdentifier>
     </Filter>
     <Filter Include="assets\models">
-      <UniqueIdentifier>{b55d0b92-8425-4f1f-9813-057f20d29217}</UniqueIdentifier>
+      <UniqueIdentifier>{2ab90bf0-027d-4254-95b7-26cfe0d5b8ad}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="assets\textures">
+      <UniqueIdentifier>{8b9dc79a-6f8f-49c8-915c-95137f43c240}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\core">
+      <UniqueIdentifier>{44c4eb38-aebd-47ae-852e-b818144fa466}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\input">
+      <UniqueIdentifier>{85eafbdc-fbef-4e3a-ab34-02c954d83351}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\renderer">
+      <UniqueIdentifier>{f14ad0f5-ec72-4378-88ba-30cab2f4867a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\renderer\geometry">
+      <UniqueIdentifier>{1a6ada29-03c1-4348-8531-a13db87b9691}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\utility">
+      <UniqueIdentifier>{94e79e8c-9c85-4ff8-9afa-706e569805ab}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\sasha">
+      <UniqueIdentifier>{21dcf390-8ad6-4242-9916-698b4b5cae03}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\sasha\renderer">
+      <UniqueIdentifier>{1aa302bf-c7be-491c-bbb9-305097a65307}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\sasha\renderer\geometry">
+      <UniqueIdentifier>{32bbc9f5-f560-4024-9584-ca3656748246}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\sasha\utility">
+      <UniqueIdentifier>{7e8c27db-8fd2-4ff9-835a-53460cd40051}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\sasha\input">
+      <UniqueIdentifier>{fb46b484-c7c3-4b5e-aacf-1dec960a5628}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\sasha\core">
+      <UniqueIdentifier>{86efdbce-a728-450b-a000-9cd2a24b298b}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="source\renderer\D3DRenderer.cpp">
-      <Filter>source\renderer</Filter>
+    <ClCompile Include="..\app\SashaMain.cpp">
+      <Filter>app</Filter>
     </ClCompile>
-    <ClCompile Include="source\core\App.cpp">
+    <ClCompile Include="..\source\core\App.cpp">
       <Filter>source\core</Filter>
     </ClCompile>
-    <ClCompile Include="source\utility\d3dUtil.cpp">
+    <ClCompile Include="..\source\utility\d3dUtil.cpp">
       <Filter>source\utility</Filter>
     </ClCompile>
-    <ClCompile Include="source\SashaMain.cpp">
-      <Filter>source</Filter>
-    </ClCompile>
-    <ClCompile Include="source\core\input\Keyboard.cpp">
-      <Filter>source\core\input</Filter>
-    </ClCompile>
-    <ClCompile Include="source\core\input\Mouse.cpp">
-      <Filter>source\core\input</Filter>
-    </ClCompile>
-    <ClCompile Include="source\renderer\FrameResource.cpp">
+    <ClCompile Include="..\source\renderer\D3DRenderer.cpp">
       <Filter>source\renderer</Filter>
     </ClCompile>
-    <ClCompile Include="source\renderer\geometry\GeometryGenerator.cpp">
-      <Filter>source\renderer\geometry</Filter>
-    </ClCompile>
-    <ClCompile Include="source\renderer\geometry\GeometryLibrary.cpp">
-      <Filter>source\renderer\geometry</Filter>
-    </ClCompile>
-    <ClCompile Include="source\renderer\Scene.cpp">
+    <ClCompile Include="..\source\renderer\FrameResource.cpp">
       <Filter>source\renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\renderer\Scene.cpp">
+      <Filter>source\renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\renderer\geometry\GeometryGenerator.cpp">
+      <Filter>source\renderer\geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\renderer\geometry\GeometryLibrary.cpp">
+      <Filter>source\renderer\geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\input\Keyboard.cpp">
+      <Filter>source\input</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\input\Mouse.cpp">
+      <Filter>source\input</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="source\renderer\D3DRenderer.h">
-      <Filter>source\renderer</Filter>
+    <ClInclude Include="..\include\sasha\core\App.h">
+      <Filter>include\sasha\core</Filter>
     </ClInclude>
-    <ClInclude Include="source\utility\d3dx12.h">
-      <Filter>source\utility</Filter>
+    <ClInclude Include="..\include\sasha\input\Keyboard.h">
+      <Filter>include\sasha\input</Filter>
     </ClInclude>
-    <ClInclude Include="source\utility\Timer.h">
-      <Filter>source\utility</Filter>
+    <ClInclude Include="..\include\sasha\input\Mouse.h">
+      <Filter>include\sasha\input</Filter>
     </ClInclude>
-    <ClInclude Include="source\core\App.h">
-      <Filter>source\core</Filter>
+    <ClInclude Include="..\include\sasha\renderer\D3DRenderer.h">
+      <Filter>include\sasha\renderer</Filter>
     </ClInclude>
-    <ClInclude Include="source\utility\d3dIncludes.h">
-      <Filter>source\utility</Filter>
+    <ClInclude Include="..\include\sasha\renderer\FrameResource.h">
+      <Filter>include\sasha\renderer</Filter>
     </ClInclude>
-    <ClInclude Include="source\utility\d3dException.h">
-      <Filter>source\utility</Filter>
+    <ClInclude Include="..\include\sasha\renderer\Scene.h">
+      <Filter>include\sasha\renderer</Filter>
     </ClInclude>
-    <ClInclude Include="source\utility\d3dUtil.h">
-      <Filter>source\utility</Filter>
+    <ClInclude Include="..\include\sasha\renderer\geometry\GeometryGenerator.h">
+      <Filter>include\sasha\renderer\geometry</Filter>
     </ClInclude>
-    <ClInclude Include="source\core\input\Keyboard.h">
-      <Filter>source\core\input</Filter>
+    <ClInclude Include="..\include\sasha\renderer\geometry\GeometryLibrary.h">
+      <Filter>include\sasha\renderer\geometry</Filter>
     </ClInclude>
-    <ClInclude Include="source\core\input\Mouse.h">
-      <Filter>source\core\input</Filter>
+    <ClInclude Include="..\include\sasha\renderer\geometry\Mesh.h">
+      <Filter>include\sasha\renderer\geometry</Filter>
     </ClInclude>
-    <ClInclude Include="source\renderer\FrameResource.h">
-      <Filter>source\renderer</Filter>
+    <ClInclude Include="..\include\sasha\utility\d3dException.h">
+      <Filter>include\sasha\utility</Filter>
     </ClInclude>
-    <ClInclude Include="source\renderer\geometry\GeometryGenerator.h">
-      <Filter>source\renderer\geometry</Filter>
+    <ClInclude Include="..\include\sasha\utility\d3dIncludes.h">
+      <Filter>include\sasha\utility</Filter>
     </ClInclude>
-    <ClInclude Include="source\renderer\geometry\Mesh.h">
-      <Filter>source\renderer\geometry</Filter>
+    <ClInclude Include="..\include\sasha\utility\d3dUtil.h">
+      <Filter>include\sasha\utility</Filter>
     </ClInclude>
-    <ClInclude Include="source\renderer\geometry\GeometryLibrary.h">
-      <Filter>source\renderer\geometry</Filter>
+    <ClInclude Include="..\include\sasha\utility\d3dx12.h">
+      <Filter>include\sasha\utility</Filter>
     </ClInclude>
-    <ClInclude Include="source\renderer\Scene.h">
-      <Filter>source\renderer</Filter>
+    <ClInclude Include="..\include\sasha\utility\Timer.h">
+      <Filter>include\sasha\utility</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="shaders\defaultVS.hlsl">
-      <Filter>shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="shaders\defaultPS.hlsl">
-      <Filter>shaders</Filter>
-    </FxCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="assets\models\car.txt">
+    <Text Include="..\assets\models\car.txt">
       <Filter>assets\models</Filter>
     </Text>
-    <Text Include="assets\models\skull.txt">
+    <Text Include="..\assets\models\skull.txt">
       <Filter>assets\models</Filter>
     </Text>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\shaders\defaultVS.cso">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\shaders\defaultPS.cso">
+      <Filter>shaders</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\shaders\defaultPS.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\shaders\defaultVS.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

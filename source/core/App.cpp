@@ -1,4 +1,4 @@
-#include "App.h"
+#include "../../include/sasha/core/App.h"
 
 namespace
 {

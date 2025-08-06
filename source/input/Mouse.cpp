@@ -1,4 +1,4 @@
-#include "Mouse.h"
+#include "../../include/sasha/input/Mouse.h"
 
 void Mouse::OnMouseMove(int x, int y)
 {

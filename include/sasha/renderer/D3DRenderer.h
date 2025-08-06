@@ -1,5 +1,5 @@
-#include "../core/input/Keyboard.h"
-#include "../core/input/Mouse.h"
+#include "../../../include/sasha/input/Keyboard.h"
+#include "../../../include/sasha/input/Mouse.h"
 #include "Scene.h"
 #include "FrameResource.h"
 #include <functional>

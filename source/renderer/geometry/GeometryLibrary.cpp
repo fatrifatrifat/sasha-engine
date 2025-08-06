@@ -1,4 +1,4 @@
-#include "GeometryLibrary.h"
+#include "../../../include/sasha/renderer/geometry/GeometryLibrary.h"
 
 void GeometryLibrary::AddGeometry(const std::string& name, GeometryGenerator::MeshData& mesh, const DirectX::XMFLOAT4& color)
 {
