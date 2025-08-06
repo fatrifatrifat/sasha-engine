@@ -1,5 +1,6 @@
 #include "../../../include/sasha/input/Keyboard.h"
 #include "../../../include/sasha/input/Mouse.h"
+#include "../sasha.h"
 #include "Scene.h"
 #include "FrameResource.h"
 #include <functional>
@@ -82,7 +83,8 @@ private:
 	ComPtr<IDXGIFactory4> _factory;
 	ComPtr<IDXGISwapChain> _swapChain;
 
-	ComPtr<ID3D12CommandQueue> _cmdQueue;
+	//ComPtr<ID3D12CommandQueue> _cmdQueue;
+	std::unique_ptr<CommandQueue> _cmdQueue;
 	ComPtr<ID3D12CommandAllocator> _cmdAlloc;
 	ComPtr<ID3D12GraphicsCommandList> _cmdList;
 

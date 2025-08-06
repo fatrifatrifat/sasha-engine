@@ -87,6 +87,9 @@
     <ClCompile Include="..\source\input\Mouse.cpp">
       <Filter>source\input</Filter>
     </ClCompile>
+    <ClCompile Include="..\source\renderer\CommandQueue.cpp">
+      <Filter>source\renderer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\sasha\core\App.h">
@@ -130,6 +133,12 @@
     </ClInclude>
     <ClInclude Include="..\include\sasha\utility\Timer.h">
       <Filter>include\sasha\utility</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\sasha\renderer\CommandQueue.h">
+      <Filter>include\sasha\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\sasha\sasha.h">
+      <Filter>include\sasha</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -70,10 +70,10 @@ void D3DRenderer::Update(Timer& t)
 	_frameResourceIndex = (_frameResourceIndex + 1) % _frameResourceCount;
 	_currFrameResource = _frameResources[_frameResourceIndex].get();
 
-	if (_currFrameResource->_fence != 0 && _fence->GetCompletedValue() < _currFrameResource->_fence)
+	if (_currFrameResource->_fence != 0 && _cmdQueue->GetFence()->GetCompletedValue() < _currFrameResource->_fence)
 	{
 		HANDLE eventHandle = CreateEventEx(nullptr, nullptr, false, EVENT_ALL_ACCESS);
-		_fence->SetEventOnCompletion(_currFrameResource->_fence, eventHandle);
+		_cmdQueue->GetFence()->SetEventOnCompletion(_currFrameResource->_fence, eventHandle);
 		WaitForSingleObject(eventHandle, INFINITE);
 		CloseHandle(eventHandle);
 	}
@@ -197,17 +197,17 @@ void D3DRenderer::CreateDevice()
 		sizeof(qualityLevels)
 	));
 	assert(qualityLevels.NumQualityLevels > 0);
-
 }
 
 void D3DRenderer::CreateCmdObjs()
 {
 	// Creating the command queue which will contain the lists of command that was sent to the GPU
-	D3D12_COMMAND_QUEUE_DESC cqDesc{};
+	/*D3D12_COMMAND_QUEUE_DESC cqDesc{};
 	cqDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	cqDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
-	ThrowIfFailed(_device->CreateCommandQueue(&cqDesc, IID_PPV_ARGS(&_cmdQueue)));
+	ThrowIfFailed(_device->CreateCommandQueue(&cqDesc, IID_PPV_ARGS(&_cmdQueue)));*/
+	_cmdQueue = std::make_unique<CommandQueue>(_device.Get());
 
 	// Creating the command allocator which will let you allocate memory of command lists
 	ThrowIfFailed(_device->CreateCommandAllocator(
@@ -227,11 +227,11 @@ void D3DRenderer::CreateCmdObjs()
 	ThrowIfFailed(_cmdList->Close());
 
 	// Creating a fence object so we can synchronize the CPU and GPU
-	ThrowIfFailed(_device->CreateFence(
+	/*ThrowIfFailed(_device->CreateFence(
 		0u, 
 		D3D12_FENCE_FLAG_NONE,
 		IID_PPV_ARGS(&_fence)
-	));
+	));*/
 }
 
 void D3DRenderer::CreateSwapChain()
@@ -257,7 +257,7 @@ void D3DRenderer::CreateSwapChain()
 	scDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
 	ThrowIfFailed(_factory->CreateSwapChain(
-		_cmdQueue.Get(),
+		_cmdQueue->GetCmdQueue(),
 		&scDesc,
 		_swapChain.GetAddressOf()
 	));
@@ -349,8 +349,8 @@ void D3DRenderer::CreateDSV()
 void D3DRenderer::BuildInputLayout()
 {
 	// Getting and compiling the shaders
-	std::wstring shaderPath1 = L"C:\\Users\\rifat\\source\\repos\\sasha-engine\\shaders\\defaultVS.cso";
-	std::wstring shaderPath2 = L"C:\\Users\\rifat\\source\\repos\\sasha-engine\\shaders\\defaultPS.cso";
+	std::filesystem::path shaderPath1 = std::filesystem::current_path() / ".." / "shaders" / "defaultVS.cso";
+	std::filesystem::path shaderPath2 = std::filesystem::current_path() / ".." / "shaders" / "defaultPS.cso";
 	ThrowIfFailed(D3DReadFileToBlob(shaderPath1.c_str(), &_vertexShader));
 	ThrowIfFailed(D3DReadFileToBlob(shaderPath2.c_str(), &_pixelShader));
 
@@ -370,7 +370,8 @@ void D3DRenderer::BuildGeometry()
 	auto box = g.CreateBox(1.f, 1.f, 1.f, 0);
 	auto cylinder = g.CreateCylinder(0.5f, 0.3f, 3.f, 10, 10);
 	auto grid = g.CreateGrid(160.f, 160.f, 100, 100);
-	auto skull = g.ReadFile("C:\\Users\\rifat\\source\\repos\\sasha-engine\\assets\\models\\skull.txt");
+	std::filesystem::path skullPath = std::filesystem::current_path() / ".." / "assets" / "models" / "skull.txt";
+	auto skull = g.ReadFile(skullPath.string());
 	for (size_t i = 0; i < grid.Vertices.size(); i++)
 	{
 		auto& pos = grid.Vertices[i].Position;
@@ -547,7 +548,7 @@ void D3DRenderer::BuildPSO()
 void D3DRenderer::FlushQueue()
 {
 	// Synchronizes the CPU and the GPU to a certain command list
-	_currFence++;
+	/*_currFence++;
 	_cmdQueue->Signal(_fence.Get(), _currFence);
 
 	if (_fence->GetCompletedValue() < _currFence)
@@ -556,7 +557,8 @@ void D3DRenderer::FlushQueue()
 		_fence->SetEventOnCompletion(_currFence, eventHandle);
 		WaitForSingleObject(eventHandle, INFINITE);
 		CloseHandle(eventHandle);
-	}
+	}*/
+	_cmdQueue->Flush();
 }
 
 void D3DRenderer::OnResize()
@@ -606,9 +608,10 @@ D3D12_CPU_DESCRIPTOR_HANDLE D3DRenderer::GetDSView()
 
 void D3DRenderer::ExecuteCmdList()
 {
-	ThrowIfFailed(_cmdList->Close());
+	/*ThrowIfFailed(_cmdList->Close());
 	ID3D12CommandList* cmdLists[] = { _cmdList.Get() };
-	_cmdQueue->ExecuteCommandLists(_countof(cmdLists), cmdLists);
+	_cmdQueue->ExecuteCommandLists(_countof(cmdLists), cmdLists);*/
+	_cmdQueue->ExecuteCmdList(_cmdList.Get());
 }
 
 void D3DRenderer::ChangeResourceState(
@@ -698,7 +701,8 @@ void D3DRenderer::EndFrame()
 	_swapChain->Present(0, 0);
 	_currBackBuffer = (_currBackBuffer + 1) % bufferCount;
 
-	_currFrameResource->_fence = ++_currFence;
+	_currFrameResource->_fence = ++_cmdQueue->GetCurrFence();
 
-	_cmdQueue->Signal(_fence.Get(), _currFence);
+	_cmdQueue->Signal();
+	//_cmdQueue->Signal(_fence.Get(), _currFence);
 }
