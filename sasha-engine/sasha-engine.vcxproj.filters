@@ -27,6 +27,12 @@
     <Filter Include="source\renderer\geometry">
       <UniqueIdentifier>{48325b10-5feb-4ad6-b594-ab4bd6f9d8c0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="assets">
+      <UniqueIdentifier>{7d9bbd72-d3a0-4f0c-ab17-d9fb94205a42}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="assets\models">
+      <UniqueIdentifier>{b55d0b92-8425-4f1f-9813-057f20d29217}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\renderer\D3DRenderer.cpp">
@@ -38,7 +44,7 @@
     <ClCompile Include="source\utility\d3dUtil.cpp">
       <Filter>source\utility</Filter>
     </ClCompile>
-    <ClCompile Include="source\Main.cpp">
+    <ClCompile Include="source\SashaMain.cpp">
       <Filter>source</Filter>
     </ClCompile>
     <ClCompile Include="source\core\input\Keyboard.cpp">
@@ -111,5 +117,13 @@
     <FxCompile Include="shaders\defaultPS.hlsl">
       <Filter>shaders</Filter>
     </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="assets\models\car.txt">
+      <Filter>assets\models</Filter>
+    </Text>
+    <Text Include="assets\models\skull.txt">
+      <Filter>assets\models</Filter>
+    </Text>
   </ItemGroup>
 </Project>

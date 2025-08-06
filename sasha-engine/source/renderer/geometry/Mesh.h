@@ -57,7 +57,10 @@ struct MeshGeometry
 		ThrowIfFailed(D3DCreateBlob(_indexByteSize, &_indexCPU));
 		CopyMemory(_indexCPU->GetBufferPointer(), indices.data(), _indexByteSize);
 
-		_vertexGPU = d3dUtil::CreateBuffer(device, cmdList, _vertexUploader, vertices.data(), _vertexByteSize);
+		//_vertexGPU = d3dUtil::CreateBuffer(device, cmdList, _vertexUploader, vertices.data(), _vertexByteSize);
+		_vertexGPU = std::make_unique<d3dUtil::UploadBuffer<Vertex>>(device, (UINT)vertices.size(), false);
+		for (size_t i = 0; i < vertices.size(); i++)
+			_vertexGPU->CopyData((UINT)i, vertices[i]);
 		_indexGPU = d3dUtil::CreateBuffer(device, cmdList, _indexUploader, indices.data(), _indexByteSize);
 	}
 
@@ -66,7 +69,8 @@ struct MeshGeometry
 	Microsoft::WRL::ComPtr<ID3DBlob> _vertexCPU = nullptr;
 	Microsoft::WRL::ComPtr<ID3DBlob> _indexCPU = nullptr;
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> _vertexGPU = nullptr;
+	//Microsoft::WRL::ComPtr<ID3D12Resource> _vertexGPU = nullptr;
+	std::unique_ptr<d3dUtil::UploadBuffer<Vertex>> _vertexGPU;
 	Microsoft::WRL::ComPtr<ID3D12Resource> _indexGPU = nullptr;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> _vertexUploader = nullptr;
@@ -82,7 +86,7 @@ struct MeshGeometry
 	D3D12_VERTEX_BUFFER_VIEW VertexBufferView() const noexcept
 	{
 		D3D12_VERTEX_BUFFER_VIEW vbv;
-		vbv.BufferLocation = _vertexGPU->GetGPUVirtualAddress();
+		vbv.BufferLocation = _vertexGPU->GetResource()->GetGPUVirtualAddress();
 		vbv.StrideInBytes = _vertexStride;
 		vbv.SizeInBytes = _vertexByteSize;
 
@@ -119,4 +123,3 @@ struct RenderItem
 	UINT _startIndex = 0u;
 	UINT _baseVertex = 0u;
 };
-

@@ -4,6 +4,8 @@
 
 #include "GeometryGenerator.h"
 #include <algorithm>
+#include <fstream>
+#include <cassert>
 
 using namespace DirectX;
 
@@ -654,4 +656,36 @@ GeometryGenerator::MeshData GeometryGenerator::CreateQuad(float x, float y, floa
 	meshData.Indices32[5] = 3;
 
 	return meshData;
+}
+
+GeometryGenerator::MeshData GeometryGenerator::ReadFile(const std::string& filename)
+{
+	std::ifstream file(filename);
+	assert(file.is_open());
+
+	std::string ignore;
+	
+	size_t vertexCount;
+	size_t triangleCount;
+	file >> ignore >> vertexCount;
+	file >> ignore >> triangleCount;
+	file >> ignore >> ignore >> ignore >> ignore;
+	
+	MeshData mesh;
+	mesh.Vertices.resize(vertexCount);
+	mesh.Indices32.resize(triangleCount * 3);
+	for (size_t i = 0; i < vertexCount; i++)
+	{
+		file >> mesh.Vertices[i].Position.x >> mesh.Vertices[i].Position.y >> mesh.Vertices[i].Position.z;
+		file >> ignore >> ignore >> ignore;
+	}
+
+	file >> ignore >> ignore >> ignore;
+
+	for (size_t i = 0; i < triangleCount; i++)
+	{
+		file >> mesh.Indices32[i * 3] >> mesh.Indices32[i * 3 + 1] >> mesh.Indices32[i * 3 + 2];
+	}
+
+	return mesh;
 }

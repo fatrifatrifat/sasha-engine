@@ -78,6 +78,37 @@ void D3DRenderer::Update(Timer& t)
 		CloseHandle(eventHandle);
 	}
 
+	Vertex* vertices = (Vertex*)_geoLib.GetMesh()->_vertexCPU->GetBufferPointer();
+	size_t numElem = (UINT)(_geoLib.GetMesh()->_vertexByteSize / sizeof(Vertex));
+
+	auto fGrid = [&](size_t start, size_t end)
+		{
+			for (; start < end; start++)
+			{
+				Vertex v = *(vertices + start);
+				v.Pos.y = v.Pos.y = 0.3f * ((v.Pos.z * sin(0.1f * v.Pos.x + 2.f * t.TotalTime())) + v.Pos.x * cos(0.1f * v.Pos.z + 2.f * t.TotalTime()));
+				_geoLib.GetMesh()->_vertexGPU->CopyData(start, v);
+			}
+		};
+
+	size_t elemToCompute = numElem - _geoLib.GetSubmesh("skull")._baseVertexLocation;
+	size_t availableThread = std::thread::hardware_concurrency();
+	size_t blockSize = elemToCompute / availableThread;
+	size_t remainder = elemToCompute - blockSize * availableThread;
+	std::vector<std::thread> threads(availableThread - 1);
+	for (size_t i = 0; i < availableThread - 1; i++)
+		threads[i] = std::thread(fGrid, blockSize* i, blockSize* (i + 1));
+	fGrid(blockSize * availableThread, blockSize * availableThread + remainder);
+
+	for (auto& t : threads)
+		t.join();
+
+	for (size_t i = _geoLib.GetSubmesh("skull")._baseVertexLocation; i < numElem; i++)
+	{
+		Vertex v = *(vertices + i);
+		_geoLib.GetMesh()->_vertexGPU->CopyData(i, v);
+	}
+
 	auto currObjCB = _currFrameResource->_cb.get();
 	for (auto& e : _scene.GetRenderItems())
 	{
@@ -339,17 +370,19 @@ void D3DRenderer::BuildGeometry()
 	auto geoSphere = g.CreateGeosphere(1.f, 3);
 	auto box = g.CreateBox(1.f, 1.f, 1.f, 0);
 	auto cylinder = g.CreateCylinder(0.5f, 0.3f, 3.f, 10, 10);
-	auto grid = g.CreateGrid(160.f, 160.f, 250, 250);
+	auto grid = g.CreateGrid(160.f, 160.f, 100, 100);
+	auto skull = g.ReadFile("assets/models/skull.txt");
 	for (size_t i = 0; i < grid.Vertices.size(); i++)
 	{
 		auto& pos = grid.Vertices[i].Position;
 		pos.y = 0.3f * (pos.z * sinf(0.1f * pos.x) + pos.x * cosf(0.1f * pos.z));
-		grid.Vertices[i].Color= i % 2 ? XMFLOAT3(0.f, 0.f, 0.f) : XMFLOAT3(1.f, 1.f, 1.f);
+		grid.Vertices[i].Color = i % 2 ? XMFLOAT3(0.f, 0.f, 0.f) : XMFLOAT3(1.f, 1.f, 1.f);
 	}
 	_geoLib.AddGeometry("box", box, XMFLOAT4(Colors::LightPink));
 	_geoLib.AddGeometry("sphere", geoSphere, XMFLOAT4(Colors::Pink));
 	_geoLib.AddGeometry("cylinder", cylinder, XMFLOAT4(Colors::DeepPink));
 	_geoLib.AddGeometry("grid", grid);
+	_geoLib.AddGeometry("skull", skull, XMFLOAT4(Colors::LightPink));
 
 	// Once all are added:
 	_geoLib.Upload(_device.Get(), _cmdList.Get());
@@ -358,6 +391,7 @@ void D3DRenderer::BuildGeometry()
 void D3DRenderer::BuildScene()
 {
 	_scene.AddInstance("grid");
+	_scene.AddInstance("skull", d3dUtil::GetTranslation(0.f, 5.f, 0.f));
 
 	_scene.BuildRenderItems(_geoLib);
 }
@@ -440,9 +474,9 @@ void D3DRenderer::BuildRootSignature()
 	CD3DX12_ROOT_PARAMETER slotRootParameter[2];
 
 	// This describes the descriptor range
-	CD3DX12_DESCRIPTOR_RANGE cbvTable[2];
-	cbvTable[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
-	cbvTable[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
+	//CD3DX12_DESCRIPTOR_RANGE cbvTable[2];
+	//cbvTable[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+	//cbvTable[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
 
 	//slotRootParameter[0].InitAsDescriptorTable(1, &cbvTable[0]);
 	//slotRootParameter[1].InitAsDescriptorTable(1, &cbvTable[1]);

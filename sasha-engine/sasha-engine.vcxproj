@@ -22,7 +22,7 @@
     <ClCompile Include="source\core\App.cpp" />
     <ClCompile Include="source\core\input\Keyboard.cpp" />
     <ClCompile Include="source\core\input\Mouse.cpp" />
-    <ClCompile Include="source\Main.cpp" />
+    <ClCompile Include="source\SashaMain.cpp" />
     <ClCompile Include="source\renderer\D3DRenderer.cpp" />
     <ClCompile Include="source\renderer\FrameResource.cpp" />
     <ClCompile Include="source\renderer\geometry\GeometryGenerator.cpp" />
@@ -75,6 +75,10 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
     </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="assets\models\car.txt" />
+    <Text Include="assets\models\skull.txt" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
