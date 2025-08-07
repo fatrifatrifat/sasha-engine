@@ -6,28 +6,28 @@ CommandList::CommandList(ID3D12Device* device, ID3D12PipelineState* pso, D3D12_C
 	ThrowIfFailed(device->CreateCommandList(0u, type, _cmdAlloc.Get(), pso, IID_PPV_ARGS(&_cmdList)));
 }
 
-void CommandList::Reset(ID3D12PipelineState* pso)
+void CommandList::Reset(ID3D12PipelineState* pso) const 
 {
 	ThrowIfFailed(_cmdList->Reset(_cmdAlloc.Get(), pso));
 }
 
-void CommandList::Reset(ID3D12CommandAllocator* cmdAlloc, ID3D12PipelineState* pso)
+void CommandList::Reset(ID3D12CommandAllocator* cmdAlloc, ID3D12PipelineState* pso) const
 {
 	ThrowIfFailed(_cmdList->Reset(cmdAlloc, pso));
 }
 
-void CommandList::ChangeResourceState(ID3D12Resource* resource, D3D12_RESOURCE_STATES base, D3D12_RESOURCE_STATES change, UINT numBarrier)
+void CommandList::ChangeResourceState(ID3D12Resource* resource, D3D12_RESOURCE_STATES base, D3D12_RESOURCE_STATES change, UINT numBarrier) const noexcept
 {
 	CD3DX12_RESOURCE_BARRIER trans = CD3DX12_RESOURCE_BARRIER::Transition(resource, base, change);
 	_cmdList->ResourceBarrier(numBarrier, &trans);
 }
 
-ID3D12GraphicsCommandList* CommandList::Get() const
+ID3D12GraphicsCommandList* CommandList::Get() const noexcept
 {
 	return _cmdList.Get();
 }
 
-ID3D12CommandAllocator* CommandList::GetCmdAlloc() const
+ID3D12CommandAllocator* CommandList::GetCmdAlloc() const noexcept
 {
 	return _cmdAlloc.Get();
 }

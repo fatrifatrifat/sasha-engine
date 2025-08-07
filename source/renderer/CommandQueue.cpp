@@ -15,22 +15,22 @@ CommandQueue::CommandQueue(ID3D12Device* device,
 	ThrowIfFailed(device->CreateFence(_currFence, fenceFlags, IID_PPV_ARGS(&_fence)));
 }
 
-ID3D12CommandQueue* CommandQueue::Get() const
+ID3D12CommandQueue* CommandQueue::Get() const noexcept
 {
 	return _cmdQueue.Get();
 }
 
-ID3D12Fence* CommandQueue::GetFence() const
+ID3D12Fence* CommandQueue::GetFence() const noexcept
 {
 	return _fence.Get();
 }
 
-UINT64& CommandQueue::GetCurrFence()
+UINT64& CommandQueue::GetCurrFence() noexcept
 {
 	return _currFence;
 }
 
-void CommandQueue::ExecuteCmdList(ID3D12GraphicsCommandList* cmdList)
+void CommandQueue::ExecuteCmdList(ID3D12GraphicsCommandList* cmdList) const
 {
 	ThrowIfFailed(cmdList->Close());
 	ID3D12CommandList* cmdLists[] = { cmdList };
@@ -39,10 +39,10 @@ void CommandQueue::ExecuteCmdList(ID3D12GraphicsCommandList* cmdList)
 
 void CommandQueue::Signal() const
 {
-	_cmdQueue->Signal(_fence.Get(), _currFence);
+	ThrowIfFailed(_cmdQueue->Signal(_fence.Get(), _currFence));
 }
 
-void CommandQueue::Flush()
+void CommandQueue::Flush() const
 {
 	// Synchronizes the CPU and the GPU to a certain command list
 	_currFence++;

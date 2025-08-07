@@ -3,6 +3,8 @@
 
 namespace d3dUtil
 {
+	constexpr float PI = 3.14159265f;
+
 	inline DirectX::XMFLOAT4X4 Identity4x4()
 	{
 		DirectX::XMFLOAT4X4 result;
@@ -20,6 +22,13 @@ namespace d3dUtil
 		DirectX::XMFLOAT4X4 mat;
 		DirectX::XMStoreFloat4x4(&mat, DirectX::XMMatrixTranslation(x, y, z));
 		return mat;
+	}
+
+	inline DirectX::XMFLOAT4X4 MatToFloat(DirectX::FXMMATRIX mat)
+	{
+		DirectX::XMFLOAT4X4 res;
+		DirectX::XMStoreFloat4x4(&res, mat);
+		return res;
 	}
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateBuffer(ID3D12Device* device,

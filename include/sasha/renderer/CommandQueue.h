@@ -9,16 +9,16 @@ public:
 		D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT,
 		D3D12_FENCE_FLAGS fenceFlags = D3D12_FENCE_FLAG_NONE);
 
-	void ExecuteCmdList(ID3D12GraphicsCommandList* cmdList);
+	void ExecuteCmdList(ID3D12GraphicsCommandList* cmdList) const;
 	void Signal() const;
-	void Flush();
+	void Flush() const;
 
-	ID3D12CommandQueue* Get() const;
-	ID3D12Fence* GetFence() const;
-	UINT64& GetCurrFence();
+	ID3D12CommandQueue* Get() const noexcept;
+	ID3D12Fence* GetFence() const noexcept;
+	UINT64& GetCurrFence() noexcept;
 
 private:
 	Microsoft::WRL::ComPtr<ID3D12CommandQueue> _cmdQueue = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Fence> _fence = nullptr;
-	UINT64 _currFence = 0u;
+	mutable UINT64 _currFence = 0u;
 };

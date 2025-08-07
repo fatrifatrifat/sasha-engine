@@ -70,12 +70,14 @@ private:
 	std::unique_ptr<CommandQueue> _cmdQueue;
 	std::unique_ptr<CommandList> _cmdList;
 
-	UINT _rtvDescriptorSize = 0u;
-	UINT _dsvDescriptorSize = 0u;
-	UINT _cbvDescriptorSize = 0u;
+	//UINT _rtvDescriptorSize = 0u;
+	//UINT _dsvDescriptorSize = 0u;
+	//UINT _cbvDescriptorSize = 0u;
 
-	ComPtr<ID3D12DescriptorHeap> _rtvHeap;
-	ComPtr<ID3D12DescriptorHeap> _dsvHeap;
+	std::unique_ptr<DescriptorHeap> _rtvHeap;
+	std::unique_ptr<DescriptorHeap> _dsvHeap;
+	//ComPtr<ID3D12DescriptorHeap> _rtvHeap;
+	//ComPtr<ID3D12DescriptorHeap> _dsvHeap;
 
 	static constexpr UINT bufferCount = 2u;
 	UINT _currBackBuffer = 0u;
@@ -104,7 +106,8 @@ private:
 	PassBuffer _mainPassCB;
 	UINT _passCbvOffset = 0u;
 	std::unique_ptr<d3dUtil::UploadBuffer<ConstantBuffer>> _constantBuffer;
-	ComPtr<ID3D12DescriptorHeap> _cbvHeap;
+	//ComPtr<ID3D12DescriptorHeap> _cbvHeap;
+	std::unique_ptr<DescriptorHeap> _cbvHeap;
 
 	std::array<ComPtr<ID3D12PipelineState>, 2> _pso;
 	ComPtr<ID3D12RootSignature> _rootSignature;

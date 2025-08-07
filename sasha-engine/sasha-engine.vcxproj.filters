@@ -90,6 +90,12 @@
     <ClCompile Include="..\source\renderer\CommandQueue.cpp">
       <Filter>source\renderer</Filter>
     </ClCompile>
+    <ClCompile Include="..\source\renderer\CommandList.cpp">
+      <Filter>source\renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\renderer\DescriptorHeap.cpp">
+      <Filter>source\renderer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\sasha\core\App.h">
@@ -139,6 +145,12 @@
     </ClInclude>
     <ClInclude Include="..\include\sasha\sasha.h">
       <Filter>include\sasha</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\sasha\renderer\CommandList.h">
+      <Filter>include\sasha\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\sasha\renderer\DescriptorHeap.h">
+      <Filter>include\sasha\renderer</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -27,7 +27,7 @@ void Scene::BuildRenderItems(GeometryLibrary& geoLib)
 	}
 }
 
-const std::vector<std::unique_ptr<RenderItem>>& Scene::GetRenderItems() const
+std::vector<std::unique_ptr<RenderItem>>& Scene::GetRenderItems() 
 {
 	return _renderItems;
 }

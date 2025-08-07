@@ -30,8 +30,8 @@ void D3DRenderer::d3dInit()
 	BuildGeometry();
 	BuildScene();
 	BuildFrameResources();
-	//BuildCbvDescriptorHeap();
-	//BuildConstantBuffers();
+	BuildCbvDescriptorHeap();
+	BuildConstantBuffers();
 	BuildPSO();
 
 	_cmdQueue->ExecuteCmdList(_cmdList->Get());
@@ -81,7 +81,6 @@ void D3DRenderer::Update(Timer& t)
 
 	Vertex* vertices = (Vertex*)_geoLib.GetMesh()->_vertexCPU->GetBufferPointer();
 	size_t numElem = (UINT)(_geoLib.GetMesh()->_vertexByteSize / sizeof(Vertex));
-
 	auto fGrid = [&](size_t start, size_t end)
 		{
 			for (; start < end; start++)
@@ -103,18 +102,17 @@ void D3DRenderer::Update(Timer& t)
 
 	for (auto& t : threads)
 		t.join();
-
 	for (size_t i = _geoLib.GetSubmesh("skull")._baseVertexLocation; i < numElem; i++)
 	{
 		Vertex v = *(vertices + i);
+		XMVECTOR pos = XMLoadFloat3(&v.Pos);
 		_geoLib.GetMesh()->_vertexGPU->CopyData((UINT)i, v);
 	}
-
+	
 	auto currObjCB = _currFrameResource->_cb.get();
 	for (auto& e : _scene.GetRenderItems())
 	{
 		XMMATRIX world = XMLoadFloat4x4(&e->_world);
-
 		ConstantBuffer cb;
 		XMStoreFloat4x4(&cb.world, XMMatrixTranspose(world));
 
@@ -244,36 +242,22 @@ void D3DRenderer::CreateSwapChain()
 
 void D3DRenderer::CreateDescriptorHeaps()
 {
-	// Getting the size of a render target view descriptor (rtv), depth stencil view (dsv) and, constant buffer view, shader resource view and UAV
-	_rtvDescriptorSize = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	_dsvDescriptorSize = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-	_cbvDescriptorSize = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
 	// Creating descriptor heaps for the rtv and dsv which will contain rtvs and dsv descriptor that will be bind to the GPU pipeline
-	D3D12_DESCRIPTOR_HEAP_DESC rtvDesc{};
-	rtvDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-	rtvDesc.NumDescriptors = bufferCount;
-	rtvDesc.NodeMask = 0;
-	rtvDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-	_device->CreateDescriptorHeap(&rtvDesc, IID_PPV_ARGS(&_rtvHeap));
+	// Getting the size of a render target view descriptor (rtv), depth stencil view (dsv) and, constant buffer view, shader resource view and UAV
+	_rtvHeap = std::make_unique<DescriptorHeap>(_device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2u);
 
-	D3D12_DESCRIPTOR_HEAP_DESC dsvDesc{};
-	rtvDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-	rtvDesc.NumDescriptors = 1u;
-	rtvDesc.NodeMask = 0;
-	rtvDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-	_device->CreateDescriptorHeap(&rtvDesc, IID_PPV_ARGS(&_dsvHeap));
+	_dsvHeap = std::make_unique<DescriptorHeap>(_device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 }
 
 void D3DRenderer::CreateRTV()
 {
 	// Creating a rtv with every buffer held by the SwapChain
-	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvBegHandle(_rtvHeap->GetCPUDescriptorHandleForHeapStart());
+	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvBegHandle = _rtvHeap->GetCPUStart();
 	for (int i = 0; i < bufferCount; i++)
 	{
 		ThrowIfFailed(_swapChain->GetBuffer(i, IID_PPV_ARGS(&_swapChainBuffer[i])));
 		_device->CreateRenderTargetView(_swapChainBuffer[i].Get(), nullptr, rtvBegHandle);
-		rtvBegHandle.Offset(_rtvDescriptorSize);
+		rtvBegHandle.Offset(_rtvHeap->GetSize());
 	}
 }
 
@@ -370,7 +354,8 @@ void D3DRenderer::BuildGeometry()
 void D3DRenderer::BuildScene()
 {
 	_scene.AddInstance("grid");
-	_scene.AddInstance("skull", d3dUtil::GetTranslation(0.f, 5.f, 0.f));
+	for (float theta = 0; theta < 2.f * d3dUtil::PI; theta += (d3dUtil::PI / 5.f))
+		_scene.AddInstance("skull", d3dUtil::MatToFloat(XMMatrixRotationZ(theta) * XMMatrixTranslation(12.f * cosf(theta), 12.f * sinf(theta) + 10.f, 0.f)));
 
 	_scene.BuildRenderItems(_geoLib);
 }
@@ -392,13 +377,7 @@ void D3DRenderer::BuildCbvDescriptorHeap()
 	// Getting the index at which the global constant buffers are, right after all the unique constant buffers
 	_passCbvOffset = (UINT)(_frameResourceCount * _scene.GetRenderItems().size());
 
-	D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc{};
-	cbvHeapDesc.NumDescriptors = descriptorHeapCount;
-	cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	cbvHeapDesc.NodeMask = 0;
-
-	ThrowIfFailed(_device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&_cbvHeap)));
+	_cbvHeap = std::make_unique<DescriptorHeap>(_device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, descriptorHeapCount, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 }
 
 void D3DRenderer::BuildConstantBuffers()
@@ -420,15 +399,13 @@ void D3DRenderer::BuildConstantBuffers()
 			
 			// Get the index on the heap that contains the constant buffer for every object and get a handle to the right position of the constant buffer
 			int heapIndex = (int)(i * _scene.GetRenderItems().size() + j);
-			auto handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(_cbvHeap->GetCPUDescriptorHandleForHeapStart());
-			handle.Offset(heapIndex, _cbvDescriptorSize);
 
 			// Create constant buffer view
 			D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc{};
 			cbvDesc.BufferLocation = cbAddress;
 			cbvDesc.SizeInBytes = cbSize;
 
-			_device->CreateConstantBufferView(&cbvDesc, handle);
+			_device->CreateConstantBufferView(&cbvDesc, _cbvHeap->GetCPUStart(heapIndex));
 		}
 
 		// Do something similar for the global constant buffers that are shared between objects in the same frame resource
@@ -436,14 +413,12 @@ void D3DRenderer::BuildConstantBuffers()
 		D3D12_GPU_VIRTUAL_ADDRESS cbAddress = passCB->GetGPUVirtualAddress();
 
 		int heapIndex = _passCbvOffset + i;
-		auto handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(_cbvHeap->GetCPUDescriptorHandleForHeapStart());
-		handle.Offset(heapIndex, _cbvDescriptorSize);
 
 		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc{};
 		cbvDesc.BufferLocation = cbAddress;
 		cbvDesc.SizeInBytes = passSize;
 
-		_device->CreateConstantBufferView(&cbvDesc, handle);
+		_device->CreateConstantBufferView(&cbvDesc, _cbvHeap->GetCPUStart(heapIndex));
 	}
 }
 
@@ -453,14 +428,14 @@ void D3DRenderer::BuildRootSignature()
 	CD3DX12_ROOT_PARAMETER slotRootParameter[2];
 
 	// This describes the descriptor range
-	//CD3DX12_DESCRIPTOR_RANGE cbvTable[2];
-	//cbvTable[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
-	//cbvTable[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
+	CD3DX12_DESCRIPTOR_RANGE cbvTable[2];
+	cbvTable[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+	cbvTable[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
 
-	//slotRootParameter[0].InitAsDescriptorTable(1, &cbvTable[0]);
-	//slotRootParameter[1].InitAsDescriptorTable(1, &cbvTable[1]);
-	slotRootParameter[0].InitAsConstantBufferView(0);
-	slotRootParameter[1].InitAsConstantBufferView(1);
+	slotRootParameter[0].InitAsDescriptorTable(1, &cbvTable[0]);
+	slotRootParameter[1].InitAsDescriptorTable(1, &cbvTable[1]);
+	//slotRootParameter[0].InitAsConstantBufferView(0);
+	//slotRootParameter[1].InitAsConstantBufferView(1);
 	// Descriptor for the root signature
 	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(2, slotRootParameter,
 	 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
@@ -546,7 +521,7 @@ void D3DRenderer::OnResize()
 	CreateRTV();
 	CreateDSV();
 
-	XMMATRIX P = XMMatrixPerspectiveFovLH(0.25f * 3.14159265f, AspectRatio(), 1.0f, 1000.0f);
+	XMMATRIX P = XMMatrixPerspectiveFovLH(0.25f * d3dUtil::PI, AspectRatio(), 1.0f, 1000.0f);
 	XMStoreFloat4x4(&_proj, P);
 }
 
@@ -558,15 +533,15 @@ ID3D12Resource* D3DRenderer::GetCurrBackBuffer()
 D3D12_CPU_DESCRIPTOR_HANDLE D3DRenderer::GetCurrBackBufferView()
 {
 	return CD3DX12_CPU_DESCRIPTOR_HANDLE(
-		_rtvHeap->GetCPUDescriptorHandleForHeapStart(),
+		_rtvHeap->GetCPUStart(),
 		_currBackBuffer,
-		_rtvDescriptorSize
+		_rtvHeap->GetSize()
 	);
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE D3DRenderer::GetDSView()
 {
-	return _dsvHeap->GetCPUDescriptorHandleForHeapStart();
+	return _dsvHeap->GetCPUStart();
 }
 
 void D3DRenderer::BeginFrame()
@@ -597,17 +572,17 @@ void D3DRenderer::DrawFrame()
 	auto dsv = GetDSView();
 	_cmdList->Get()->OMSetRenderTargets(1, &currBackBufferView, true, &dsv);
 
-	//ID3D12DescriptorHeap* descriptorHeaps[] = { _cbvHeap.Get() };
-	//_cmdList->Get()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+	ID3D12DescriptorHeap* descriptorHeaps[] = { _cbvHeap->Get() };
+	_cmdList->Get()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
 	_cmdList->Get()->SetGraphicsRootSignature(_rootSignature.Get());
 
-	//int passCbvIndex = _passCbvOffset + _frameResourceIndex;
+	int passCbvIndex = _passCbvOffset + _frameResourceIndex;
 	//auto passCbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(_cbvHeap->GetGPUDescriptorHandleForHeapStart());
 	//passCbvHandle.Offset(passCbvIndex, _cbvDescriptorSize);
-	//_cmdList->Get()->SetGraphicsRootDescriptorTable(1, passCbvHandle);
+	_cmdList->Get()->SetGraphicsRootDescriptorTable(1, _cbvHeap->GetGPUStart(passCbvIndex));
 
-	_cmdList->Get()->SetGraphicsRootConstantBufferView(1, _currFrameResource->_pass->GetResource()->GetGPUVirtualAddress());
+	//_cmdList->Get()->SetGraphicsRootConstantBufferView(1, _currFrameResource->_pass->GetResource()->GetGPUVirtualAddress());
 
 	for (const auto& ri : _scene.GetRenderItems())
 	{
@@ -618,14 +593,14 @@ void D3DRenderer::DrawFrame()
 		_cmdList->Get()->IASetIndexBuffer(&ibv);
 		_cmdList->Get()->IASetPrimitiveTopology(ri->_primitiveType);
 
-		//UINT cbvIndex = _frameResourceIndex * (UINT)_scene.GetRenderItems().size() + ri->_cbObjIndex;
+		UINT cbvIndex = _frameResourceIndex * (UINT)_scene.GetRenderItems().size() + ri->_cbObjIndex;
 		//auto cbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(_cbvHeap->GetGPUDescriptorHandleForHeapStart());
 		//cbvHandle.Offset(cbvIndex, _cbvDescriptorSize);
 
-		//_cmdList->Get()->SetGraphicsRootDescriptorTable(0, cbvHandle);
-		auto address = _currFrameResource->_cb->GetResource()->GetGPUVirtualAddress();
-		address += ri->_cbObjIndex * d3dUtil::CalcConstantBufferSize(sizeof(ConstantBuffer));
-		_cmdList->Get()->SetGraphicsRootConstantBufferView(0, address);
+		_cmdList->Get()->SetGraphicsRootDescriptorTable(0, _cbvHeap->GetGPUStart(cbvIndex));
+		//auto address = _currFrameResource->_cb->GetResource()->GetGPUVirtualAddress();
+		//address += ri->_cbObjIndex * d3dUtil::CalcConstantBufferSize(sizeof(ConstantBuffer));
+		//_cmdList->Get()->SetGraphicsRootConstantBufferView(0, address);
 
 		_cmdList->Get()->DrawIndexedInstanced(ri->_indexCount, 1u, ri->_startIndex, ri->_baseVertex, 0u);
 	}

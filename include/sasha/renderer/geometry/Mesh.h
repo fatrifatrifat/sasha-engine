@@ -122,4 +122,6 @@ struct RenderItem
 	UINT _indexCount = 0u;
 	UINT _startIndex = 0u;
 	UINT _baseVertex = 0u;
+
+	UINT _hasMoved = true;
 };

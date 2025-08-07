@@ -26,6 +26,7 @@
     <ClCompile Include="..\source\renderer\CommandList.cpp" />
     <ClCompile Include="..\source\renderer\CommandQueue.cpp" />
     <ClCompile Include="..\source\renderer\D3DRenderer.cpp" />
+    <ClCompile Include="..\source\renderer\DescriptorHeap.cpp" />
     <ClCompile Include="..\source\renderer\FrameResource.cpp" />
     <ClCompile Include="..\source\renderer\geometry\GeometryGenerator.cpp" />
     <ClCompile Include="..\source\renderer\geometry\GeometryLibrary.cpp" />
@@ -39,6 +40,7 @@
     <ClInclude Include="..\include\sasha\renderer\CommandList.h" />
     <ClInclude Include="..\include\sasha\renderer\CommandQueue.h" />
     <ClInclude Include="..\include\sasha\renderer\D3DRenderer.h" />
+    <ClInclude Include="..\include\sasha\renderer\DescriptorHeap.h" />
     <ClInclude Include="..\include\sasha\renderer\FrameResource.h" />
     <ClInclude Include="..\include\sasha\renderer\geometry\GeometryGenerator.h" />
     <ClInclude Include="..\include\sasha\renderer\geometry\GeometryLibrary.h" />
