@@ -11,7 +11,7 @@ D3DRenderer::D3DRenderer(HWND wh, int w, int h)
 D3DRenderer::~D3DRenderer()
 {
 	if (_device)
-		FlushQueue();
+		_cmdQueue->Flush();
 }
 
 void D3DRenderer::d3dInit()
@@ -22,7 +22,8 @@ void D3DRenderer::d3dInit()
 	CreateDescriptorHeaps();
 	OnResize();
 
-	ThrowIfFailed(_cmdList->Reset(_cmdAlloc.Get(), nullptr));
+	//ThrowIfFailed(_cmdList->Reset(_cmdAlloc.Get(), nullptr));
+	_cmdList->Reset();
 
 	BuildRootSignature();
 	BuildInputLayout();
@@ -33,8 +34,8 @@ void D3DRenderer::d3dInit()
 	//BuildConstantBuffers();
 	BuildPSO();
 
-	ExecuteCmdList();
-	FlushQueue();
+	_cmdQueue->ExecuteCmdList(_cmdList->Get());
+	_cmdQueue->Flush();
 }
 
 void D3DRenderer::SetInputs(Keyboard* kb, Mouse* m) noexcept
@@ -202,36 +203,14 @@ void D3DRenderer::CreateDevice()
 void D3DRenderer::CreateCmdObjs()
 {
 	// Creating the command queue which will contain the lists of command that was sent to the GPU
-	/*D3D12_COMMAND_QUEUE_DESC cqDesc{};
-	cqDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-	cqDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-
-	ThrowIfFailed(_device->CreateCommandQueue(&cqDesc, IID_PPV_ARGS(&_cmdQueue)));*/
+	// Creating a fence object so we can synchronize the CPU and GPU
 	_cmdQueue = std::make_unique<CommandQueue>(_device.Get());
 
-	// Creating the command allocator which will let you allocate memory of command lists
-	ThrowIfFailed(_device->CreateCommandAllocator(
-		D3D12_COMMAND_LIST_TYPE_DIRECT,
-		IID_PPV_ARGS(_cmdAlloc.GetAddressOf())
-	));
-
 	// Creating the command list which will contain the list of commands that will the sent to the command queue
-	ThrowIfFailed(_device->CreateCommandList(
-		0,
-		D3D12_COMMAND_LIST_TYPE_DIRECT,
-		_cmdAlloc.Get(),
-		nullptr,
-		IID_PPV_ARGS(_cmdList.GetAddressOf())
-	));
+	// Creating the command allocator which will let you allocate memory of command lists
+	_cmdList = std::make_unique<CommandList>(_device.Get());
+	_cmdList->Get()->Close();
 
-	ThrowIfFailed(_cmdList->Close());
-
-	// Creating a fence object so we can synchronize the CPU and GPU
-	/*ThrowIfFailed(_device->CreateFence(
-		0u, 
-		D3D12_FENCE_FLAG_NONE,
-		IID_PPV_ARGS(&_fence)
-	));*/
 }
 
 void D3DRenderer::CreateSwapChain()
@@ -257,7 +236,7 @@ void D3DRenderer::CreateSwapChain()
 	scDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
 	ThrowIfFailed(_factory->CreateSwapChain(
-		_cmdQueue->GetCmdQueue(),
+		_cmdQueue->Get(),
 		&scDesc,
 		_swapChain.GetAddressOf()
 	));
@@ -330,7 +309,7 @@ void D3DRenderer::CreateDSV()
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 	_device->CreateDepthStencilView(_depthStencilBuffer.Get(), &dsvDesc, GetDSView());
 
-	ChangeResourceState(_depthStencilBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+	_cmdList->ChangeResourceState(_depthStencilBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
 	// Initialize the viewport and scissors rectangle
 	_vp.MaxDepth = 1.f;
@@ -342,8 +321,8 @@ void D3DRenderer::CreateDSV()
 
 	_scissor = { 0, 0, _appWidth, _appHeight };
 
-	ExecuteCmdList();
-	FlushQueue();
+	_cmdQueue->ExecuteCmdList(_cmdList->Get());
+	_cmdQueue->Flush();
 }
 
 void D3DRenderer::BuildInputLayout()
@@ -385,7 +364,7 @@ void D3DRenderer::BuildGeometry()
 	_geoLib.AddGeometry("skull", skull, XMFLOAT4(Colors::LightPink));
 
 	// Once all are added:
-	_geoLib.Upload(_device.Get(), _cmdList.Get());
+	_geoLib.Upload(_device.Get(), _cmdList->Get());
 }
 
 void D3DRenderer::BuildScene()
@@ -545,28 +524,12 @@ void D3DRenderer::BuildPSO()
 	ThrowIfFailed(_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&_pso[1])));
 }
 
-void D3DRenderer::FlushQueue()
-{
-	// Synchronizes the CPU and the GPU to a certain command list
-	/*_currFence++;
-	_cmdQueue->Signal(_fence.Get(), _currFence);
-
-	if (_fence->GetCompletedValue() < _currFence)
-	{
-		HANDLE eventHandle = CreateEventEx(nullptr, nullptr, false, EVENT_ALL_ACCESS);
-		_fence->SetEventOnCompletion(_currFence, eventHandle);
-		WaitForSingleObject(eventHandle, INFINITE);
-		CloseHandle(eventHandle);
-	}*/
-	_cmdQueue->Flush();
-}
-
 void D3DRenderer::OnResize()
 {
 	// Called whenever the size of the app is changed
 	// Also creates the render target view as well as the depth stencil view
-	FlushQueue();
-	_cmdList->Reset(_cmdAlloc.Get(), nullptr);
+	_cmdQueue->Flush();
+	_cmdList->Reset();
 
 	for (int i = 0; i < bufferCount; i++)
 		_swapChainBuffer[i].Reset();
@@ -606,103 +569,77 @@ D3D12_CPU_DESCRIPTOR_HANDLE D3DRenderer::GetDSView()
 	return _dsvHeap->GetCPUDescriptorHandleForHeapStart();
 }
 
-void D3DRenderer::ExecuteCmdList()
-{
-	/*ThrowIfFailed(_cmdList->Close());
-	ID3D12CommandList* cmdLists[] = { _cmdList.Get() };
-	_cmdQueue->ExecuteCommandLists(_countof(cmdLists), cmdLists);*/
-	_cmdQueue->ExecuteCmdList(_cmdList.Get());
-}
-
-void D3DRenderer::ChangeResourceState(
-	ID3D12Resource* resource,
-	D3D12_RESOURCE_STATES prevState,
-	D3D12_RESOURCE_STATES nextState,
-	UINT numBarriers) const noexcept
-{
-	const CD3DX12_RESOURCE_BARRIER barrier(
-		CD3DX12_RESOURCE_BARRIER
-		::Transition(
-			resource,
-			prevState,
-			nextState
-		)
-	);
-
-	_cmdList->ResourceBarrier(numBarriers, &barrier);
-}
-
 void D3DRenderer::BeginFrame()
 {
+	auto& _currCmdAlloc = _currFrameResource->_cmdAlloc;
 
 	ThrowIfFailed(_currFrameResource->_cmdAlloc->Reset());
 	if (_isWireFrame)
 	{
-		ThrowIfFailed(_cmdList->Reset(_currFrameResource->_cmdAlloc.Get(), _pso[0].Get()));
+		_cmdList->Reset(_currCmdAlloc.Get(), _pso[0].Get());
 	}
 	else
-		ThrowIfFailed(_cmdList->Reset(_currFrameResource->_cmdAlloc.Get(), _pso[1].Get()));
+		_cmdList->Reset(_currCmdAlloc.Get(), _pso[1].Get());
 
-	ChangeResourceState(GetCurrBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	_cmdList->ChangeResourceState(GetCurrBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 }
 
 void D3DRenderer::DrawFrame()
 {
-	_cmdList->RSSetViewports(1, &_vp);
-	_cmdList->RSSetScissorRects(1, &_scissor);
+	
+	_cmdList->Get()->RSSetViewports(1, &_vp);
+	_cmdList->Get()->RSSetScissorRects(1, &_scissor);
 
-	_cmdList->ClearRenderTargetView(GetCurrBackBufferView(), Colors::SteelBlue, 0, nullptr);
-	_cmdList->ClearDepthStencilView(GetDSView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
+	_cmdList->Get()->ClearRenderTargetView(GetCurrBackBufferView(), Colors::SteelBlue, 0, nullptr);
+	_cmdList->Get()->ClearDepthStencilView(GetDSView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
 
 	auto currBackBufferView = GetCurrBackBufferView();
 	auto dsv = GetDSView();
-	_cmdList->OMSetRenderTargets(1, &currBackBufferView, true, &dsv);
+	_cmdList->Get()->OMSetRenderTargets(1, &currBackBufferView, true, &dsv);
 
 	//ID3D12DescriptorHeap* descriptorHeaps[] = { _cbvHeap.Get() };
-	//_cmdList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+	//_cmdList->Get()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
-	_cmdList->SetGraphicsRootSignature(_rootSignature.Get());
+	_cmdList->Get()->SetGraphicsRootSignature(_rootSignature.Get());
 
 	//int passCbvIndex = _passCbvOffset + _frameResourceIndex;
 	//auto passCbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(_cbvHeap->GetGPUDescriptorHandleForHeapStart());
 	//passCbvHandle.Offset(passCbvIndex, _cbvDescriptorSize);
-	//_cmdList->SetGraphicsRootDescriptorTable(1, passCbvHandle);
+	//_cmdList->Get()->SetGraphicsRootDescriptorTable(1, passCbvHandle);
 
-	_cmdList->SetGraphicsRootConstantBufferView(1, _currFrameResource->_pass->GetResource()->GetGPUVirtualAddress());
+	_cmdList->Get()->SetGraphicsRootConstantBufferView(1, _currFrameResource->_pass->GetResource()->GetGPUVirtualAddress());
 
 	for (const auto& ri : _scene.GetRenderItems())
 	{
 		auto vbv = ri->_mesh->VertexBufferView();
 		auto ibv = ri->_mesh->IndexBufferView();
 
-		_cmdList->IASetVertexBuffers(0, 1, &vbv);
-		_cmdList->IASetIndexBuffer(&ibv);
-		_cmdList->IASetPrimitiveTopology(ri->_primitiveType);
+		_cmdList->Get()->IASetVertexBuffers(0, 1, &vbv);
+		_cmdList->Get()->IASetIndexBuffer(&ibv);
+		_cmdList->Get()->IASetPrimitiveTopology(ri->_primitiveType);
 
 		//UINT cbvIndex = _frameResourceIndex * (UINT)_scene.GetRenderItems().size() + ri->_cbObjIndex;
 		//auto cbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(_cbvHeap->GetGPUDescriptorHandleForHeapStart());
 		//cbvHandle.Offset(cbvIndex, _cbvDescriptorSize);
 
-		//_cmdList->SetGraphicsRootDescriptorTable(0, cbvHandle);
+		//_cmdList->Get()->SetGraphicsRootDescriptorTable(0, cbvHandle);
 		auto address = _currFrameResource->_cb->GetResource()->GetGPUVirtualAddress();
 		address += ri->_cbObjIndex * d3dUtil::CalcConstantBufferSize(sizeof(ConstantBuffer));
-		_cmdList->SetGraphicsRootConstantBufferView(0, address);
+		_cmdList->Get()->SetGraphicsRootConstantBufferView(0, address);
 
-		_cmdList->DrawIndexedInstanced(ri->_indexCount, 1u, ri->_startIndex, ri->_baseVertex, 0u);
+		_cmdList->Get()->DrawIndexedInstanced(ri->_indexCount, 1u, ri->_startIndex, ri->_baseVertex, 0u);
 	}
-	
 }
 
 void D3DRenderer::EndFrame()
 {
-	ChangeResourceState(GetCurrBackBuffer(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+	_cmdList->ChangeResourceState(GetCurrBackBuffer(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
-	ExecuteCmdList();
+	_cmdQueue->ExecuteCmdList(_cmdList->Get());
 	_swapChain->Present(0, 0);
 	_currBackBuffer = (_currBackBuffer + 1) % bufferCount;
 
 	_currFrameResource->_fence = ++_cmdQueue->GetCurrFence();
 
 	_cmdQueue->Signal();
-	//_cmdQueue->Signal(_fence.Get(), _currFence);
 }

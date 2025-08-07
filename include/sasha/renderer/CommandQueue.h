@@ -13,7 +13,7 @@ public:
 	void Signal() const;
 	void Flush();
 
-	ID3D12CommandQueue* GetCmdQueue() const;
+	ID3D12CommandQueue* Get() const;
 	ID3D12Fence* GetFence() const;
 	UINT64& GetCurrFence();
 

@@ -10,14 +10,6 @@ using namespace DirectX;
 
 class D3DRenderer
 {
-private:
-	struct ObjectDescriptor
-	{
-		std::string name;
-		std::function<GeometryGenerator::MeshData()> shapeFn;
-		XMFLOAT4 color = XMFLOAT4(Colors::Black);
-		XMFLOAT4X4 transform = d3dUtil::Identity4x4();
-	};
 public:
 	D3DRenderer(HWND wh, int w, int h);
 	~D3DRenderer();
@@ -51,17 +43,9 @@ private:
 	void BuildRootSignature();
 	void BuildPSO();
 	
-	void FlushQueue();
-
 	ID3D12Resource* GetCurrBackBuffer();
 	D3D12_CPU_DESCRIPTOR_HANDLE GetCurrBackBufferView();
 	D3D12_CPU_DESCRIPTOR_HANDLE GetDSView();
-
-	void ExecuteCmdList();
-	void ChangeResourceState(ID3D12Resource* resource,
-		D3D12_RESOURCE_STATES prevState,
-		D3D12_RESOURCE_STATES nextState,
-		UINT numBarriers = 1) const noexcept; 
 
 	void BeginFrame();
 	void DrawFrame();
@@ -83,13 +67,8 @@ private:
 	ComPtr<IDXGIFactory4> _factory;
 	ComPtr<IDXGISwapChain> _swapChain;
 
-	//ComPtr<ID3D12CommandQueue> _cmdQueue;
 	std::unique_ptr<CommandQueue> _cmdQueue;
-	ComPtr<ID3D12CommandAllocator> _cmdAlloc;
-	ComPtr<ID3D12GraphicsCommandList> _cmdList;
-
-	UINT _currFence = 0u;
-	ComPtr<ID3D12Fence> _fence;
+	std::unique_ptr<CommandList> _cmdList;
 
 	UINT _rtvDescriptorSize = 0u;
 	UINT _dsvDescriptorSize = 0u;

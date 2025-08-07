@@ -23,6 +23,7 @@
     <ClCompile Include="..\source\core\App.cpp" />
     <ClCompile Include="..\source\input\Keyboard.cpp" />
     <ClCompile Include="..\source\input\Mouse.cpp" />
+    <ClCompile Include="..\source\renderer\CommandList.cpp" />
     <ClCompile Include="..\source\renderer\CommandQueue.cpp" />
     <ClCompile Include="..\source\renderer\D3DRenderer.cpp" />
     <ClCompile Include="..\source\renderer\FrameResource.cpp" />
@@ -35,6 +36,7 @@
     <ClInclude Include="..\include\sasha\core\App.h" />
     <ClInclude Include="..\include\sasha\input\Keyboard.h" />
     <ClInclude Include="..\include\sasha\input\Mouse.h" />
+    <ClInclude Include="..\include\sasha\renderer\CommandList.h" />
     <ClInclude Include="..\include\sasha\renderer\CommandQueue.h" />
     <ClInclude Include="..\include\sasha\renderer\D3DRenderer.h" />
     <ClInclude Include="..\include\sasha\renderer\FrameResource.h" />

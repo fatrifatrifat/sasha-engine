@@ -15,7 +15,7 @@ CommandQueue::CommandQueue(ID3D12Device* device,
 	ThrowIfFailed(device->CreateFence(_currFence, fenceFlags, IID_PPV_ARGS(&_fence)));
 }
 
-ID3D12CommandQueue* CommandQueue::GetCmdQueue() const
+ID3D12CommandQueue* CommandQueue::Get() const
 {
 	return _cmdQueue.Get();
 }
@@ -44,6 +44,7 @@ void CommandQueue::Signal() const
 
 void CommandQueue::Flush()
 {
+	// Synchronizes the CPU and the GPU to a certain command list
 	_currFence++;
 	_cmdQueue->Signal(_fence.Get(), _currFence);
 
