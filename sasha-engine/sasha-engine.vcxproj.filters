@@ -96,6 +96,9 @@
     <ClCompile Include="..\source\renderer\DescriptorHeap.cpp">
       <Filter>source\renderer</Filter>
     </ClCompile>
+    <ClCompile Include="..\source\renderer\RootSignature.cpp">
+      <Filter>source\renderer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\sasha\core\App.h">
@@ -150,6 +153,9 @@
       <Filter>include\sasha\renderer</Filter>
     </ClInclude>
     <ClInclude Include="..\include\sasha\renderer\DescriptorHeap.h">
+      <Filter>include\sasha\renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\sasha\renderer\RootSignature.h">
       <Filter>include\sasha\renderer</Filter>
     </ClInclude>
   </ItemGroup>

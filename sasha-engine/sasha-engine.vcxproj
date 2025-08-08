@@ -30,6 +30,7 @@
     <ClCompile Include="..\source\renderer\FrameResource.cpp" />
     <ClCompile Include="..\source\renderer\geometry\GeometryGenerator.cpp" />
     <ClCompile Include="..\source\renderer\geometry\GeometryLibrary.cpp" />
+    <ClCompile Include="..\source\renderer\RootSignature.cpp" />
     <ClCompile Include="..\source\renderer\Scene.cpp" />
     <ClCompile Include="..\source\utility\d3dUtil.cpp" />
   </ItemGroup>
@@ -45,6 +46,7 @@
     <ClInclude Include="..\include\sasha\renderer\geometry\GeometryGenerator.h" />
     <ClInclude Include="..\include\sasha\renderer\geometry\GeometryLibrary.h" />
     <ClInclude Include="..\include\sasha\renderer\geometry\Mesh.h" />
+    <ClInclude Include="..\include\sasha\renderer\RootSignature.h" />
     <ClInclude Include="..\include\sasha\renderer\Scene.h" />
     <ClInclude Include="..\include\sasha\sasha.h" />
     <ClInclude Include="..\include\sasha\utility\d3dException.h" />

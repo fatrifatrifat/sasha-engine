@@ -70,14 +70,8 @@ private:
 	std::unique_ptr<CommandQueue> _cmdQueue;
 	std::unique_ptr<CommandList> _cmdList;
 
-	//UINT _rtvDescriptorSize = 0u;
-	//UINT _dsvDescriptorSize = 0u;
-	//UINT _cbvDescriptorSize = 0u;
-
 	std::unique_ptr<DescriptorHeap> _rtvHeap;
 	std::unique_ptr<DescriptorHeap> _dsvHeap;
-	//ComPtr<ID3D12DescriptorHeap> _rtvHeap;
-	//ComPtr<ID3D12DescriptorHeap> _dsvHeap;
 
 	static constexpr UINT bufferCount = 2u;
 	UINT _currBackBuffer = 0u;
@@ -91,7 +85,6 @@ private:
 	ComPtr<ID3DBlob> _pixelShader;
 	std::vector<D3D12_INPUT_ELEMENT_DESC> _inputLayoutDesc{};
 
-	XMFLOAT4X4 _world = d3dUtil::Identity4x4();
 	XMFLOAT4X4 _view = d3dUtil::Identity4x4();
 	XMFLOAT4X4 _proj = d3dUtil::Identity4x4();
 
@@ -105,8 +98,6 @@ private:
 
 	PassBuffer _mainPassCB;
 	UINT _passCbvOffset = 0u;
-	std::unique_ptr<d3dUtil::UploadBuffer<ConstantBuffer>> _constantBuffer;
-	//ComPtr<ID3D12DescriptorHeap> _cbvHeap;
 	std::unique_ptr<DescriptorHeap> _cbvHeap;
 
 	std::array<ComPtr<ID3D12PipelineState>, 2> _pso;

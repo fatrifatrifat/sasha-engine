@@ -30,8 +30,8 @@ void D3DRenderer::d3dInit()
 	BuildGeometry();
 	BuildScene();
 	BuildFrameResources();
-	BuildCbvDescriptorHeap();
-	BuildConstantBuffers();
+	//BuildCbvDescriptorHeap();
+	//BuildConstantBuffers();
 	BuildPSO();
 
 	_cmdQueue->ExecuteCmdList(_cmdList->Get());
@@ -425,41 +425,12 @@ void D3DRenderer::BuildConstantBuffers()
 void D3DRenderer::BuildRootSignature()
 {
 	// This describes a slot for the constant buffers for the shaders
-	CD3DX12_ROOT_PARAMETER slotRootParameter[2];
-
-	// This describes the descriptor range
-	CD3DX12_DESCRIPTOR_RANGE cbvTable[2];
-	cbvTable[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
-	cbvTable[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
-
-	slotRootParameter[0].InitAsDescriptorTable(1, &cbvTable[0]);
-	slotRootParameter[1].InitAsDescriptorTable(1, &cbvTable[1]);
-	//slotRootParameter[0].InitAsConstantBufferView(0);
-	//slotRootParameter[1].InitAsConstantBufferView(1);
-	// Descriptor for the root signature
-	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(2, slotRootParameter,
-	 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-
-	// Serializes the root signature to create it later
-	ComPtr<ID3DBlob> serializedRootSig = nullptr;
-	ComPtr<ID3DBlob> errorBlob = nullptr;
-	HRESULT hr = D3D12SerializeRootSignature(
-		&rootSigDesc,
-		D3D_ROOT_SIGNATURE_VERSION_1,
-		serializedRootSig.GetAddressOf(),
-		errorBlob.GetAddressOf()
-	);
-
-	if (errorBlob)
-		::OutputDebugStringA((char*)errorBlob->GetBufferPointer());
-	ThrowIfFailed(hr);
-	
-	ThrowIfFailed(_device->CreateRootSignature(
-		0,
-		serializedRootSig->GetBufferPointer(),
-		serializedRootSig->GetBufferSize(),
-		IID_PPV_ARGS(_rootSignature.GetAddressOf())
-	));
+	RootSignature rootBuilder;
+	//rootBuilder.AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1u, 0u);
+	//rootBuilder.AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1u, 1u);
+	rootBuilder.AddCBV(0u);
+	rootBuilder.AddCBV(1u);
+	_rootSignature = rootBuilder.Build(_device.Get());
 }
 
 void D3DRenderer::BuildPSO()
@@ -572,17 +543,17 @@ void D3DRenderer::DrawFrame()
 	auto dsv = GetDSView();
 	_cmdList->Get()->OMSetRenderTargets(1, &currBackBufferView, true, &dsv);
 
-	ID3D12DescriptorHeap* descriptorHeaps[] = { _cbvHeap->Get() };
-	_cmdList->Get()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+	//ID3D12DescriptorHeap* descriptorHeaps[] = { _cbvHeap->Get() };
+	//_cmdList->Get()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
 	_cmdList->Get()->SetGraphicsRootSignature(_rootSignature.Get());
 
-	int passCbvIndex = _passCbvOffset + _frameResourceIndex;
+	//int passCbvIndex = _passCbvOffset + _frameResourceIndex;
 	//auto passCbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(_cbvHeap->GetGPUDescriptorHandleForHeapStart());
 	//passCbvHandle.Offset(passCbvIndex, _cbvDescriptorSize);
-	_cmdList->Get()->SetGraphicsRootDescriptorTable(1, _cbvHeap->GetGPUStart(passCbvIndex));
+	//_cmdList->Get()->SetGraphicsRootDescriptorTable(1, _cbvHeap->GetGPUStart(passCbvIndex));
 
-	//_cmdList->Get()->SetGraphicsRootConstantBufferView(1, _currFrameResource->_pass->GetResource()->GetGPUVirtualAddress());
+	_cmdList->Get()->SetGraphicsRootConstantBufferView(1, _currFrameResource->_pass->GetResource()->GetGPUVirtualAddress());
 
 	for (const auto& ri : _scene.GetRenderItems())
 	{
@@ -593,14 +564,14 @@ void D3DRenderer::DrawFrame()
 		_cmdList->Get()->IASetIndexBuffer(&ibv);
 		_cmdList->Get()->IASetPrimitiveTopology(ri->_primitiveType);
 
-		UINT cbvIndex = _frameResourceIndex * (UINT)_scene.GetRenderItems().size() + ri->_cbObjIndex;
+		//UINT cbvIndex = _frameResourceIndex * (UINT)_scene.GetRenderItems().size() + ri->_cbObjIndex;
 		//auto cbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(_cbvHeap->GetGPUDescriptorHandleForHeapStart());
 		//cbvHandle.Offset(cbvIndex, _cbvDescriptorSize);
 
-		_cmdList->Get()->SetGraphicsRootDescriptorTable(0, _cbvHeap->GetGPUStart(cbvIndex));
-		//auto address = _currFrameResource->_cb->GetResource()->GetGPUVirtualAddress();
-		//address += ri->_cbObjIndex * d3dUtil::CalcConstantBufferSize(sizeof(ConstantBuffer));
-		//_cmdList->Get()->SetGraphicsRootConstantBufferView(0, address);
+		//_cmdList->Get()->SetGraphicsRootDescriptorTable(0, _cbvHeap->GetGPUStart(cbvIndex));
+		auto address = _currFrameResource->_cb->GetResource()->GetGPUVirtualAddress();
+		address += ri->_cbObjIndex * d3dUtil::CalcConstantBufferSize(sizeof(ConstantBuffer));
+		_cmdList->Get()->SetGraphicsRootConstantBufferView(0, address);
 
 		_cmdList->Get()->DrawIndexedInstanced(ri->_indexCount, 1u, ri->_startIndex, ri->_baseVertex, 0u);
 	}
