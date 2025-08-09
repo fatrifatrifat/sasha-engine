@@ -1,6 +1,6 @@
 # Sasha Engine
 
-Sasha Engine is a personal project designed to deepen my understanding of **DirectX 12** while building a modular graphics engine. The goal of this project is to gain hands-on experience with modern graphics programming techniques and prepare for an upcoming internship focused on game development and real-time rendering.
+Sasha Engine is a personal project designed to deepen my understanding of **DirectX 12** while building a modular graphics engine. The goal of this project is to gain hands-on experience with modern graphics programming techniques and prepare for an upcoming internship focused on real-time rendering.
 
 ## Features
 
