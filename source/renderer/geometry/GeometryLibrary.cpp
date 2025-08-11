@@ -9,7 +9,7 @@ void GeometryLibrary::AddGeometry(const std::string& name, GeometryGenerator::Me
     sub._indexCount = static_cast<UINT>(mesh.Indices32.size());
 
     for (const auto& v : mesh.Vertices)
-        _vertices.push_back({ v.Position, color });
+        _vertices.push_back({ v.Position, color, v.Normal });
 
     auto indices16 = mesh.GetIndices16();
     _indices.insert(_indices.end(), indices16.begin(), indices16.end());
@@ -26,7 +26,7 @@ void GeometryLibrary::AddGeometry(const std::string& name, GeometryGenerator::Me
     sub._indexCount = static_cast<UINT>(mesh.Indices32.size());
 
     for (const auto& v : mesh.Vertices)
-        _vertices.push_back({ v.Position, DirectX::XMFLOAT4(v.Color.x, v.Color.y, v.Color.z, 1.f) });
+        _vertices.push_back({ v.Position, DirectX::XMFLOAT4(v.Color.x, v.Color.y, v.Color.z, 1.f), v.Normal });
 
     auto indices16 = mesh.GetIndices16();
     _indices.insert(_indices.end(), indices16.begin(), indices16.end());

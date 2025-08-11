@@ -51,6 +51,12 @@ private:
 	void DrawFrame();
 	void EndFrame();
 
+	void UpdateCamera(Timer& t);
+	void UpdateModels(Timer& t);
+	void UpdateObjCB(Timer& t);
+	void UpdatePassCB(Timer& t);
+	void UpdateMatCB(Timer& t);
+
 private:
 	int _appWidth;
 	int _appHeight;

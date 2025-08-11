@@ -17,6 +17,17 @@ namespace d3dUtil
 		return (size + 255) & ~255;
 	}
 
+	static inline DirectX::XMMATRIX InverseTranspose(DirectX::CXMMATRIX mat)
+	{
+		DirectX::XMMATRIX A = mat;
+		A.r[3] = DirectX::XMVectorSet(0.f, 0.f, 0.f, 1.f);
+
+		DirectX::XMVECTOR det = DirectX::XMMatrixDeterminant(A);
+
+		return DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(&det, A));
+	}
+
+
 	inline DirectX::XMFLOAT4X4 GetTranslation(float x, float y, float z)
 	{
 		DirectX::XMFLOAT4X4 mat;

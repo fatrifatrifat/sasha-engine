@@ -158,6 +158,9 @@
     <ClInclude Include="..\include\sasha\renderer\RootSignature.h">
       <Filter>include\sasha\renderer</Filter>
     </ClInclude>
+    <ClInclude Include="..\include\sasha\renderer\geometry\Material.h">
+      <Filter>include\sasha\renderer\geometry</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\assets\models\car.txt">

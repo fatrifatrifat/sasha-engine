@@ -22,7 +22,6 @@ void D3DRenderer::d3dInit()
 	CreateDescriptorHeaps();
 	OnResize();
 
-	//ThrowIfFailed(_cmdList->Reset(_cmdAlloc.Get(), nullptr));
 	_cmdList->Reset();
 
 	BuildRootSignature();
@@ -53,20 +52,7 @@ void D3DRenderer::RenderFrame(Timer& t)
 
 void D3DRenderer::Update(Timer& t)
 {
-	if (_kbd->IsKeyPressed('W'))
-		_cameraPos.z += _cameraSpeed * t.DeltaTime();
-	else if (_kbd->IsKeyPressed('S'))
-		_cameraPos.z -= _cameraSpeed * t.DeltaTime();
-	else if (_kbd->IsKeyPressed('D'))
-		_cameraPos.x += _cameraSpeed * t.DeltaTime();
-	else if (_kbd->IsKeyPressed('A'))
-		_cameraPos.x -= _cameraSpeed * t.DeltaTime();
-	else if (_kbd->IsKeyPressed(VK_SPACE))
-		_cameraPos.y += _cameraSpeed * t.DeltaTime();
-	else if (_kbd->IsKeyPressed(VK_CONTROL))
-		_cameraPos.y -= _cameraSpeed * t.DeltaTime();
-	else if (_kbd->IsKeyPressed(VK_F2) && _kbd->WasKeyPressedThisFrame(VK_F2))
-		_isWireFrame = !_isWireFrame;
+	UpdateCamera(t);
 
 	_frameResourceIndex = (_frameResourceIndex + 1) % _frameResourceCount;
 	_currFrameResource = _frameResources[_frameResourceIndex].get();
@@ -79,78 +65,11 @@ void D3DRenderer::Update(Timer& t)
 		CloseHandle(eventHandle);
 	}
 
-	Vertex* vertices = (Vertex*)_geoLib.GetMesh()->_vertexCPU->GetBufferPointer();
-	size_t numElem = (UINT)(_geoLib.GetMesh()->_vertexByteSize / sizeof(Vertex));
-	auto fGrid = [&](size_t start, size_t end)
-		{
-			for (; start < end; start++)
-			{
-				Vertex v = *(vertices + start);
-				v.Pos.y = v.Pos.y = 0.3f * ((v.Pos.z * sin(0.1f * v.Pos.x + 2.f * t.TotalTime())) + v.Pos.x * cos(0.1f * v.Pos.z + 2.f * t.TotalTime()));
-				_geoLib.GetMesh()->_vertexGPU->CopyData((UINT)start, v);
-			}
-		};
-
-	size_t elemToCompute = numElem - _geoLib.GetSubmesh("skull")._baseVertexLocation;
-	size_t availableThread = std::thread::hardware_concurrency();
-	size_t blockSize = elemToCompute / availableThread;
-	size_t remainder = elemToCompute - blockSize * availableThread;
-	std::vector<std::thread> threads(availableThread - 1);
-	for (size_t i = 0; i < availableThread - 1; i++)
-		threads[i] = std::thread(fGrid, blockSize* i, blockSize* (i + 1));
-	fGrid(blockSize * availableThread, blockSize * availableThread + remainder);
-
-	for (auto& t : threads)
-		t.join();
-	for (size_t i = _geoLib.GetSubmesh("skull")._baseVertexLocation; i < numElem; i++)
-	{
-		Vertex v = *(vertices + i);
-		XMVECTOR pos = XMLoadFloat3(&v.Pos);
-		_geoLib.GetMesh()->_vertexGPU->CopyData((UINT)i, v);
-	}
+	UpdateModels(t);
 	
-	auto currObjCB = _currFrameResource->_cb.get();
-	for (auto& e : _scene.GetRenderItems())
-	{
-		XMMATRIX world = XMLoadFloat4x4(&e->_world);
-		ConstantBuffer cb;
-		XMStoreFloat4x4(&cb.world, XMMatrixTranspose(world));
-
-		currObjCB->CopyData(e->_cbObjIndex, cb);
-	}
-
-	XMVECTOR pos = XMLoadFloat4(&_cameraPos);
-	XMVECTOR target = XMVectorZero();
-	XMVECTOR up = XMVectorSet(0.f, 1.f, 0.f, 0.f);
-
-	XMMATRIX view = XMMatrixLookAtLH(pos, target, up);
-	XMStoreFloat4x4(&_view, view);
-
-	XMMATRIX proj = XMLoadFloat4x4(&_proj);
-
-	XMMATRIX viewProj = view * proj;
-	auto a = XMMatrixDeterminant(view);
-	auto b = XMMatrixDeterminant(proj);
-	auto c = XMMatrixDeterminant(viewProj);
-	XMMATRIX invView = XMMatrixInverse(&a, view);
-	XMMATRIX invProj = XMMatrixInverse(&b, proj);
-	XMMATRIX invViewProj = XMMatrixInverse(&c, viewProj);
-
-	XMStoreFloat4x4(&_mainPassCB.View, XMMatrixTranspose(view));
-	XMStoreFloat4x4(&_mainPassCB.InvView, XMMatrixTranspose(invView));
-	XMStoreFloat4x4(&_mainPassCB.Proj, XMMatrixTranspose(proj));
-	XMStoreFloat4x4(&_mainPassCB.InvProj, XMMatrixTranspose(invProj));
-	XMStoreFloat4x4(&_mainPassCB.ViewProj, XMMatrixTranspose(viewProj));
-	XMStoreFloat4x4(&_mainPassCB.InvViewProj, XMMatrixTranspose(invViewProj));
-	_mainPassCB.EyePosW = { _cameraPos.x, _cameraPos.y, _cameraPos.z };
-	_mainPassCB.RenderTargetSize = XMFLOAT2((float)_appWidth, (float)_appHeight);
-	_mainPassCB.InvRenderTargetSize = XMFLOAT2(1.0f / _appWidth, 1.0f / _appHeight);
-	_mainPassCB.NearZ = 1.0f;
-	_mainPassCB.FarZ = 1000.0f;
-	_mainPassCB.TotalTime = t.TotalTime();
-	_mainPassCB.DeltaTime = t.DeltaTime();
-
-	_currFrameResource->_pass->CopyData(0, _mainPassCB);
+	UpdateObjCB(t);
+	UpdatePassCB(t);
+	UpdateMatCB(t);
 }
 
 float D3DRenderer::AspectRatio() const noexcept
@@ -322,6 +241,7 @@ void D3DRenderer::BuildInputLayout()
 	{
 		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 		{"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 28, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 	};
 }
 
@@ -364,7 +284,7 @@ void D3DRenderer::BuildFrameResources()
 {
 	// Build the Frame Resources
 	for (int i = 0; i < _frameResourceCount; i++)
-		_frameResources.push_back(std::make_unique<FrameResource>(_device.Get(), 1u, (UINT)_scene.GetRenderItems().size()));
+		_frameResources.push_back(std::make_unique<FrameResource>(_device.Get(), 1u, static_cast<UINT>(_scene.GetRenderItems().size())));
 }
 
 void D3DRenderer::BuildCbvDescriptorHeap()
@@ -373,9 +293,9 @@ void D3DRenderer::BuildCbvDescriptorHeap()
 	// Making a heap capable of holding 3n + 3 descriptors
 	// 3n so each object can have their own frame resource on each frame resource
 	// + 3 so each frame resource has access to it's global constant buffer that's non unique to each object
-	UINT descriptorHeapCount = (UINT)((_scene.GetRenderItems().size() + 1) * _frameResourceCount);
+	UINT descriptorHeapCount = static_cast<UINT>(((_scene.GetRenderItems().size() + 1) * _frameResourceCount));
 	// Getting the index at which the global constant buffers are, right after all the unique constant buffers
-	_passCbvOffset = (UINT)(_frameResourceCount * _scene.GetRenderItems().size());
+	_passCbvOffset = static_cast<UINT>((_frameResourceCount * _scene.GetRenderItems().size()));
 
 	_cbvHeap = std::make_unique<DescriptorHeap>(_device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, descriptorHeapCount, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 }
@@ -440,7 +360,7 @@ void D3DRenderer::BuildPSO()
 	ZeroMemory(&psoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
 	psoDesc.InputLayout = { 
 		_inputLayoutDesc.data(),
-		(UINT)_inputLayoutDesc.size()
+		static_cast<UINT>(_inputLayoutDesc.size())
 	};
 	psoDesc.pRootSignature = _rootSignature.Get();
 	psoDesc.VS = { 
@@ -564,7 +484,7 @@ void D3DRenderer::DrawFrame()
 		_cmdList->Get()->IASetIndexBuffer(&ibv);
 		_cmdList->Get()->IASetPrimitiveTopology(ri->_primitiveType);
 
-		//UINT cbvIndex = _frameResourceIndex * (UINT)_scene.GetRenderItems().size() + ri->_cbObjIndex;
+		//UINT cbvIndex = _frameResourceIndex * static_cast<UINT>(_scene.GetRenderItems().size() + ri->_cbObjIndex;
 		//auto cbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(_cbvHeap->GetGPUDescriptorHandleForHeapStart());
 		//cbvHandle.Offset(cbvIndex, _cbvDescriptorSize);
 
@@ -588,4 +508,109 @@ void D3DRenderer::EndFrame()
 	_currFrameResource->_fence = ++_cmdQueue->GetCurrFence();
 
 	_cmdQueue->Signal();
+}
+
+void D3DRenderer::UpdateCamera(Timer& t)
+{
+	if (_kbd->IsKeyPressed('W'))
+		_cameraPos.z += _cameraSpeed * t.DeltaTime();
+	else if (_kbd->IsKeyPressed('S'))
+		_cameraPos.z -= _cameraSpeed * t.DeltaTime();
+	else if (_kbd->IsKeyPressed('D'))
+		_cameraPos.x += _cameraSpeed * t.DeltaTime();
+	else if (_kbd->IsKeyPressed('A'))
+		_cameraPos.x -= _cameraSpeed * t.DeltaTime();
+	else if (_kbd->IsKeyPressed(VK_SPACE))
+		_cameraPos.y += _cameraSpeed * t.DeltaTime();
+	else if (_kbd->IsKeyPressed(VK_CONTROL))
+		_cameraPos.y -= _cameraSpeed * t.DeltaTime();
+	else if (_kbd->IsKeyPressed(VK_F2) && _kbd->WasKeyPressedThisFrame(VK_F2))
+		_isWireFrame = !_isWireFrame;
+}
+
+void D3DRenderer::UpdateModels(Timer& t)
+{
+	Vertex* vertices = (Vertex*)_geoLib.GetMesh()->_vertexCPU->GetBufferPointer();
+	size_t numElem = static_cast<UINT>((_geoLib.GetMesh()->_vertexByteSize / sizeof(Vertex)));
+	auto fGrid = [&](size_t start, size_t end)
+		{
+			for (; start < end; start++)
+			{
+				Vertex v = *(vertices + start);
+				v.Pos.y = v.Pos.y = 0.3f * ((v.Pos.z * sin(0.1f * v.Pos.x + 2.f * t.TotalTime())) + v.Pos.x * cos(0.1f * v.Pos.z + 2.f * t.TotalTime()));
+				_geoLib.GetMesh()->_vertexGPU->CopyData(static_cast<UINT>(start), v);
+			}
+		};
+
+	size_t elemToCompute = numElem - _geoLib.GetSubmesh("skull")._baseVertexLocation;
+	size_t availableThread = std::thread::hardware_concurrency();
+	size_t blockSize = elemToCompute / availableThread;
+	size_t remainder = elemToCompute - blockSize * availableThread;
+	std::vector<std::thread> threads(availableThread - 1);
+	for (size_t i = 0; i < availableThread - 1; i++)
+		threads[i] = std::thread(fGrid, blockSize * i, blockSize * (i + 1));
+	fGrid(blockSize * availableThread, blockSize * availableThread + remainder);
+
+	for (auto& t : threads)
+		t.join();
+	for (size_t i = _geoLib.GetSubmesh("skull")._baseVertexLocation; i < numElem; i++)
+	{
+		Vertex v = *(vertices + i);
+		XMVECTOR pos = XMLoadFloat3(&v.Pos);
+		_geoLib.GetMesh()->_vertexGPU->CopyData(static_cast<UINT>(i), v);
+	}
+}
+
+void D3DRenderer::UpdateObjCB(Timer& t)
+{
+	auto currObjCB = _currFrameResource->_cb.get();
+	for (auto& e : _scene.GetRenderItems())
+	{
+		XMMATRIX world = XMLoadFloat4x4(&e->_world);
+		ConstantBuffer cb;
+		XMStoreFloat4x4(&cb.world, XMMatrixTranspose(world));
+		XMStoreFloat4x4(&cb.inverseTranspose, XMMatrixTranspose(d3dUtil::InverseTranspose(world)));
+
+		currObjCB->CopyData(e->_cbObjIndex, cb);
+	}
+}
+
+void D3DRenderer::UpdatePassCB(Timer& t)
+{
+	XMVECTOR pos = XMLoadFloat4(&_cameraPos);
+	XMVECTOR target = XMVectorZero();
+	XMVECTOR up = XMVectorSet(0.f, 1.f, 0.f, 0.f);
+
+	XMMATRIX view = XMMatrixLookAtLH(pos, target, up);
+	XMStoreFloat4x4(&_view, view);
+
+	XMMATRIX proj = XMLoadFloat4x4(&_proj);
+
+	XMMATRIX viewProj = view * proj;
+	auto a = XMMatrixDeterminant(view);
+	auto b = XMMatrixDeterminant(proj);
+	auto c = XMMatrixDeterminant(viewProj);
+	XMMATRIX invView = XMMatrixInverse(&a, view);
+	XMMATRIX invProj = XMMatrixInverse(&b, proj);
+	XMMATRIX invViewProj = XMMatrixInverse(&c, viewProj);
+
+	XMStoreFloat4x4(&_mainPassCB.View, XMMatrixTranspose(view));
+	XMStoreFloat4x4(&_mainPassCB.InvView, XMMatrixTranspose(invView));
+	XMStoreFloat4x4(&_mainPassCB.Proj, XMMatrixTranspose(proj));
+	XMStoreFloat4x4(&_mainPassCB.InvProj, XMMatrixTranspose(invProj));
+	XMStoreFloat4x4(&_mainPassCB.ViewProj, XMMatrixTranspose(viewProj));
+	XMStoreFloat4x4(&_mainPassCB.InvViewProj, XMMatrixTranspose(invViewProj));
+	_mainPassCB.EyePosW = { _cameraPos.x, _cameraPos.y, _cameraPos.z };
+	_mainPassCB.RenderTargetSize = XMFLOAT2((float)_appWidth, (float)_appHeight);
+	_mainPassCB.InvRenderTargetSize = XMFLOAT2(1.0f / _appWidth, 1.0f / _appHeight);
+	_mainPassCB.NearZ = 1.0f;
+	_mainPassCB.FarZ = 1000.0f;
+	_mainPassCB.TotalTime = t.TotalTime();
+	_mainPassCB.DeltaTime = t.DeltaTime();
+
+	_currFrameResource->_pass->CopyData(0, _mainPassCB);
+}
+
+void D3DRenderer::UpdateMatCB(Timer& t)
+{
 }

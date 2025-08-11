@@ -677,7 +677,7 @@ GeometryGenerator::MeshData GeometryGenerator::ReadFile(const std::string& filen
 	for (size_t i = 0; i < vertexCount; i++)
 	{
 		file >> mesh.Vertices[i].Position.x >> mesh.Vertices[i].Position.y >> mesh.Vertices[i].Position.z;
-		file >> ignore >> ignore >> ignore;
+		file >> mesh.Vertices[i].Normal.x >> mesh.Vertices[i].Normal.y >> mesh.Vertices[i].Normal.z;
 	}
 
 	file >> ignore >> ignore >> ignore;

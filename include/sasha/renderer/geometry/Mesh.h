@@ -5,11 +5,13 @@ struct Vertex
 {
 	DirectX::XMFLOAT3 Pos;
 	DirectX::XMFLOAT4 Color;
+	DirectX::XMFLOAT3 Normal;
 };
 
 struct ConstantBuffer
 {
 	DirectX::XMFLOAT4X4 world = d3dUtil::Identity4x4();
+	DirectX::XMFLOAT4X4 inverseTranspose = d3dUtil::Identity4x4();
 };
 
 struct PassBuffer
@@ -48,8 +50,8 @@ struct MeshGeometry
 	template <typename VertexContainer, typename IndexContainer>
 	MeshGeometry(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, const VertexContainer& vertices, const IndexContainer& indices)
 		: _vertexStride(sizeof(Vertex))
-		, _vertexByteSize(vertices.size() * _vertexStride)
-		, _indexByteSize(indices.size() * sizeof(std::uint16_t))
+		, _vertexByteSize(static_cast<UINT>(vertices.size() * _vertexStride))
+		, _indexByteSize(static_cast<UINT>(indices.size() * sizeof(std::uint16_t)))
 	{
 		ThrowIfFailed(D3DCreateBlob(_vertexByteSize, &_vertexCPU));
 		CopyMemory(_vertexCPU->GetBufferPointer(), vertices.data(), _vertexByteSize);
@@ -58,9 +60,9 @@ struct MeshGeometry
 		CopyMemory(_indexCPU->GetBufferPointer(), indices.data(), _indexByteSize);
 
 		//_vertexGPU = d3dUtil::CreateBuffer(device, cmdList, _vertexUploader, vertices.data(), _vertexByteSize);
-		_vertexGPU = std::make_unique<d3dUtil::UploadBuffer<Vertex>>(device, (UINT)vertices.size(), false);
+		_vertexGPU = std::make_unique<d3dUtil::UploadBuffer<Vertex>>(device, static_cast<UINT>(vertices.size()), false);
 		for (size_t i = 0; i < vertices.size(); i++)
-			_vertexGPU->CopyData((UINT)i, vertices[i]);
+			_vertexGPU->CopyData(static_cast<UINT>(i), vertices[i]);
 		_indexGPU = d3dUtil::CreateBuffer(device, cmdList, _indexUploader, indices.data(), _indexByteSize);
 	}
 

@@ -45,6 +45,7 @@
     <ClInclude Include="..\include\sasha\renderer\FrameResource.h" />
     <ClInclude Include="..\include\sasha\renderer\geometry\GeometryGenerator.h" />
     <ClInclude Include="..\include\sasha\renderer\geometry\GeometryLibrary.h" />
+    <ClInclude Include="..\include\sasha\renderer\geometry\Material.h" />
     <ClInclude Include="..\include\sasha\renderer\geometry\Mesh.h" />
     <ClInclude Include="..\include\sasha\renderer\RootSignature.h" />
     <ClInclude Include="..\include\sasha\renderer\Scene.h" />
