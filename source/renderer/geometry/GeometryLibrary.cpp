@@ -34,6 +34,11 @@ void GeometryLibrary::AddGeometry(const std::string& name, GeometryGenerator::Me
     _submeshes[name] = sub;
 }
 
+void GeometryLibrary::AddMaterial(const std::string& name, std::unique_ptr<Material>&& mat)
+{
+    _materials[name] = std::move(mat);
+}
+
 void GeometryLibrary::Upload(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList)
 {
     _mesh = std::make_unique<MeshGeometry>(device, cmdList, _vertices, _indices);
@@ -48,4 +53,9 @@ MeshGeometry* GeometryLibrary::GetMesh()
 const SubmeshGeometry& GeometryLibrary::GetSubmesh(const std::string& name) const
 {
     return _submeshes.at(name);
+}
+
+Material* GeometryLibrary::GetMaterial(const std::string& name) const
+{
+    return _materials.at(name).get();
 }

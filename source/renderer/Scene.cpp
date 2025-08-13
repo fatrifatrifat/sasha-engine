@@ -1,8 +1,8 @@
 #include "../../include/sasha/renderer/Scene.h"
 
-void Scene::AddInstance(const std::string& meshName, const DirectX::XMFLOAT4X4& transform)
+void Scene::AddInstance(const std::string& meshName, const std::string& matName, const DirectX::XMFLOAT4X4& transform)
 {
-	_instances.push_back({ meshName, transform });
+	_instances.push_back({ meshName, transform, matName });
 }
 
 void Scene::BuildRenderItems(GeometryLibrary& geoLib)
@@ -22,6 +22,7 @@ void Scene::BuildRenderItems(GeometryLibrary& geoLib)
 		ri->_startIndex = submesh._startIndexLocation;
 		ri->_baseVertex = submesh._baseVertexLocation;
 		ri->_world = inst.transform;
+		ri->_material = geoLib.GetMaterial(inst.matName);
 
 		_renderItems.push_back(std::move(ri));
 	}

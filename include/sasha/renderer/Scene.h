@@ -5,7 +5,7 @@
 class Scene
 {
 public:
-	void AddInstance(const std::string& meshName, const DirectX::XMFLOAT4X4& transform = d3dUtil::Identity4x4());
+	void AddInstance(const std::string& meshName, const std::string& matName, const DirectX::XMFLOAT4X4& transform = d3dUtil::Identity4x4());
 	void BuildRenderItems(GeometryLibrary& geoLib);
 
 	std::vector<std::unique_ptr<RenderItem>>& GetRenderItems();

@@ -1,3 +1,20 @@
+struct Light
+{
+    float3 Strength;
+    float FalloffStart; // point/spot light only
+    float3 Direction; // directional/spot light only
+    float FalloffEnd; // point/spot light only
+    float3 Position; // point light only
+    float SpotPower; // spot light only
+};
+
+struct Material
+{
+    float4 DiffuseAlbedo;
+    float3 FresnelR0;
+    float Shininess;
+};
+
 cbuffer cbPerObject : register(b0)
 {
     float4x4 gWorld;
@@ -19,7 +36,18 @@ cbuffer cbPass : register(b1)
     float gFarZ;
     float gTotalTime;
     float gDeltaTime;
+    float4 gAmbientLight;
+    
+    Light gLights[16];
 };
+
+cbuffer cbMaterial : register(b2)
+{
+    float4 gDiffuseAlbedo;
+    float3 gFresnelR0;
+    float gRoughness;
+    float4x4 gMatTransform;
+}
 
 struct VertexIn
 {
@@ -38,7 +66,6 @@ VertexOut main(VertexIn vin)
     VertexOut vout;
 	
 	// Transform to homogeneous clip space.
-    //vin.PosL.y = 0.3f * ((vin.PosL.z * sin(0.1f * vin.PosL.x + 2.f * gTotalTime)) + vin.PosL.x * cos(0.1f * vin.PosL.z + 2.f * gTotalTime));
     float4 posW = mul(float4(vin.PosL, 1.0f), gWorld);
     vout.PosH = mul(posW, gViewProj);
 	

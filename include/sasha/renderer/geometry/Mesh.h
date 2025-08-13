@@ -1,5 +1,6 @@
 #pragma once
 #include "../../utility/d3dUtil.h"
+#include "Material.h"
 
 struct Vertex
 {
@@ -12,6 +13,16 @@ struct ConstantBuffer
 {
 	DirectX::XMFLOAT4X4 world = d3dUtil::Identity4x4();
 	DirectX::XMFLOAT4X4 inverseTranspose = d3dUtil::Identity4x4();
+};
+
+struct Light
+{
+	DirectX::XMFLOAT3 Strength = { 0.5f, 0.5f, 0.5f };
+	float FalloffStart = 1.0f;                          // point/spot light only
+	DirectX::XMFLOAT3 Direction = { 0.0f, -1.0f, 0.0f };// directional/spot light only
+	float FalloffEnd = 10.0f;                           // point/spot light only
+	DirectX::XMFLOAT3 Position = { 0.0f, 0.0f, 0.0f };  // point/spot light only
+	float SpotPower = 64.0f;                            // spot light only
 };
 
 struct PassBuffer
@@ -30,12 +41,16 @@ struct PassBuffer
 	float FarZ = 0.0f;
 	float TotalTime = 0.0f;
 	float DeltaTime = 0.0f;
+
+	DirectX::XMFLOAT4 AmbientLight = { 0.0f, 0.0f, 0.0f, 1.0f };
+	Light Lights[16];
 };
 
 struct ObjectInstance
 {
 	std::string meshName;         
-	DirectX::XMFLOAT4X4 transform;          
+	DirectX::XMFLOAT4X4 transform;
+	std::string matName;
 };
 
 struct SubmeshGeometry
@@ -118,6 +133,7 @@ struct RenderItem
 
 	UINT _cbObjIndex = -1;
 	MeshGeometry* _mesh = nullptr;
+	Material* _material = nullptr;
 
 	D3D12_PRIMITIVE_TOPOLOGY _primitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 

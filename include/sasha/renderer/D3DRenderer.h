@@ -36,6 +36,7 @@ private:
 
 	void BuildInputLayout();
 	void BuildGeometry();
+	void BuildMaterial();
 	void BuildScene();
 	void BuildFrameResources();
 	void BuildCbvDescriptorHeap();
@@ -51,11 +52,11 @@ private:
 	void DrawFrame();
 	void EndFrame();
 
-	void UpdateCamera(Timer& t);
-	void UpdateModels(Timer& t);
-	void UpdateObjCB(Timer& t);
-	void UpdatePassCB(Timer& t);
-	void UpdateMatCB(Timer& t);
+	void UpdateCamera(const Timer& t);
+	void UpdateModels(const Timer& t);
+	void UpdateObjCB(const Timer& t);
+	void UpdatePassCB(const Timer& t);
+	void UpdateMatCB(const Timer& t);
 
 private:
 	int _appWidth;

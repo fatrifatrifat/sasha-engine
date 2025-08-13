@@ -27,6 +27,7 @@ void D3DRenderer::d3dInit()
 	BuildRootSignature();
 	BuildInputLayout();
 	BuildGeometry();
+	BuildMaterial();
 	BuildScene();
 	BuildFrameResources();
 	//BuildCbvDescriptorHeap();
@@ -271,11 +272,19 @@ void D3DRenderer::BuildGeometry()
 	_geoLib.Upload(_device.Get(), _cmdList->Get());
 }
 
+void D3DRenderer::BuildMaterial()
+{
+	auto skullMat = std::make_unique<Material>();
+	skullMat->name = "skull";
+	skullMat->_matCBIndex = 0;
+	_geoLib.AddMaterial(skullMat->name, std::move(skullMat));
+}
+
 void D3DRenderer::BuildScene()
 {
-	_scene.AddInstance("grid");
+	//_scene.AddInstance("grid");
 	for (float theta = 0; theta < 2.f * d3dUtil::PI; theta += (d3dUtil::PI / 5.f))
-		_scene.AddInstance("skull", d3dUtil::MatToFloat(XMMatrixRotationZ(theta) * XMMatrixTranslation(12.f * cosf(theta), 12.f * sinf(theta) + 10.f, 0.f)));
+		_scene.AddInstance("skull", "skull", d3dUtil::MatToFloat(XMMatrixRotationZ(theta) * XMMatrixTranslation(12.f * cosf(theta), 12.f * sinf(theta) + 10.f, 0.f)));
 
 	_scene.BuildRenderItems(_geoLib);
 }
@@ -350,6 +359,7 @@ void D3DRenderer::BuildRootSignature()
 	//rootBuilder.AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1u, 1u);
 	rootBuilder.AddCBV(0u);
 	rootBuilder.AddCBV(1u);
+	rootBuilder.AddCBV(2u);
 	_rootSignature = rootBuilder.Build(_device.Get());
 }
 
@@ -492,6 +502,9 @@ void D3DRenderer::DrawFrame()
 		auto address = _currFrameResource->_cb->GetResource()->GetGPUVirtualAddress();
 		address += ri->_cbObjIndex * d3dUtil::CalcConstantBufferSize(sizeof(ConstantBuffer));
 		_cmdList->Get()->SetGraphicsRootConstantBufferView(0, address);
+		auto addressMat = _currFrameResource->_mat->GetResource()->GetGPUVirtualAddress();
+		addressMat += ri->_material->_matCBIndex * d3dUtil::CalcConstantBufferSize(sizeof(MaterialConstant));
+		_cmdList->Get()->SetGraphicsRootConstantBufferView(2, addressMat);
 
 		_cmdList->Get()->DrawIndexedInstanced(ri->_indexCount, 1u, ri->_startIndex, ri->_baseVertex, 0u);
 	}
@@ -510,7 +523,7 @@ void D3DRenderer::EndFrame()
 	_cmdQueue->Signal();
 }
 
-void D3DRenderer::UpdateCamera(Timer& t)
+void D3DRenderer::UpdateCamera(const Timer& t)
 {
 	if (_kbd->IsKeyPressed('W'))
 		_cameraPos.z += _cameraSpeed * t.DeltaTime();
@@ -528,7 +541,7 @@ void D3DRenderer::UpdateCamera(Timer& t)
 		_isWireFrame = !_isWireFrame;
 }
 
-void D3DRenderer::UpdateModels(Timer& t)
+void D3DRenderer::UpdateModels(const Timer& t)
 {
 	Vertex* vertices = (Vertex*)_geoLib.GetMesh()->_vertexCPU->GetBufferPointer();
 	size_t numElem = static_cast<UINT>((_geoLib.GetMesh()->_vertexByteSize / sizeof(Vertex)));
@@ -561,7 +574,7 @@ void D3DRenderer::UpdateModels(Timer& t)
 	}
 }
 
-void D3DRenderer::UpdateObjCB(Timer& t)
+void D3DRenderer::UpdateObjCB(const Timer& t)
 {
 	auto currObjCB = _currFrameResource->_cb.get();
 	for (auto& e : _scene.GetRenderItems())
@@ -575,7 +588,7 @@ void D3DRenderer::UpdateObjCB(Timer& t)
 	}
 }
 
-void D3DRenderer::UpdatePassCB(Timer& t)
+void D3DRenderer::UpdatePassCB(const Timer& t)
 {
 	XMVECTOR pos = XMLoadFloat4(&_cameraPos);
 	XMVECTOR target = XMVectorZero();
@@ -611,6 +624,18 @@ void D3DRenderer::UpdatePassCB(Timer& t)
 	_currFrameResource->_pass->CopyData(0, _mainPassCB);
 }
 
-void D3DRenderer::UpdateMatCB(Timer& t)
+void D3DRenderer::UpdateMatCB(const Timer& t)
 {
+	for (auto& e : _scene.GetRenderItems())
+	{
+		XMMATRIX matTransform = XMLoadFloat4x4(&e->_material->_matProperties._transform);
+
+		MaterialConstant mat;
+		mat._diffuseAlbedo = e->_material->_matProperties._diffuseAlbedo;
+		mat._fresnelR0 = e->_material->_matProperties._fresnelR0;
+		mat._roughness = e->_material->_matProperties._roughness;
+		XMStoreFloat4x4(&mat._transform, XMMatrixTranspose(matTransform));
+
+		_currFrameResource->_mat->CopyData(e->_material->_matCBIndex, mat);
+	}
 }
