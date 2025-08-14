@@ -35,7 +35,7 @@ namespace d3dUtil
 		return mat;
 	}
 
-	inline DirectX::XMFLOAT4X4 MatToFloat(DirectX::FXMMATRIX mat)
+	inline DirectX::XMFLOAT4X4 MatToFloat4x4(DirectX::FXMMATRIX mat)
 	{
 		DirectX::XMFLOAT4X4 res;
 		DirectX::XMStoreFloat4x4(&res, mat);

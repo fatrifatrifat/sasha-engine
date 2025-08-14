@@ -36,7 +36,7 @@ cbuffer cbPass : register(b2)
 struct VertexIn
 {
     float4 PosH : SV_POSITION;
-    float4 Color : COLOR;
+    float3 PosW : POSITION;
     float3 Normal : NORMAL;
 };
 
@@ -44,12 +44,21 @@ float4 main(VertexIn vin) : SV_TARGET
 {
     vin.Normal = normalize(vin.Normal);
     
-    float4 ambient = gAmbientLight * gDiffuseAlbedo;
-    const float shininess = 1 - gRoughness;
-    
+    float3 toEyeW = normalize(gEyePosW - vin.PosW); // v
+
+    const float shininess = 1.f - gRoughness;
     Material mat = { gDiffuseAlbedo, gFresnelR0, shininess };
     float3 shadowFactor = 1.f;
-    //float4 dirLight = ComputeDirectionalLight(gLights, mat, vin.PosH)
     
-    return ambient;
+    // Diffuse and Specular Light
+    float4 directLight = ComputeLighting(gLights, mat, vin.PosW, vin.Normal, toEyeW, shadowFactor);
+    
+    // Ambient Light
+    float4 ambient = gAmbientLight * gDiffuseAlbedo; // Al x md
+    
+    float4 litColor = ambient + directLight;
+    
+    litColor.a = gDiffuseAlbedo.a;
+    
+    return litColor;
 }

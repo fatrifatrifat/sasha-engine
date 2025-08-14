@@ -1,4 +1,4 @@
-#include "../../include/sasha/renderer/D3DRenderer.h"
+﻿#include "../../include/sasha/renderer/D3DRenderer.h"
 #include <filesystem>
 #include <thread>
 
@@ -241,8 +241,7 @@ void D3DRenderer::BuildInputLayout()
 	_inputLayoutDesc =
 	{
 		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-		{"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-		{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 28, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 	};
 }
 
@@ -256,16 +255,16 @@ void D3DRenderer::BuildGeometry()
 	auto grid = g.CreateGrid(160.f, 160.f, 100, 100);
 	std::filesystem::path skullPath = std::filesystem::current_path() / ".." / "assets" / "models" / "skull.txt";
 	auto skull = g.ReadFile(skullPath.string());
-	for (size_t i = 0; i < grid.Vertices.size(); i++)
+	/*for (size_t i = 0; i < grid.Vertices.size(); i++)
 	{
 		auto& pos = grid.Vertices[i].Position;
 		pos.y = 0.3f * (pos.z * sinf(0.1f * pos.x) + pos.x * cosf(0.1f * pos.z));
 		grid.Vertices[i].Color = i % 2 ? XMFLOAT4(0.f, 0.f, 0.f, 1.f) : XMFLOAT4(1.f, 1.f, 1.f, 1.f);
-	}
+	}*/
 	//_geoLib.AddGeometry("box", box, XMFLOAT4(Colors::LightPink));
 	//_geoLib.AddGeometry("sphere", geoSphere, XMFLOAT4(Colors::Pink));
 	//_geoLib.AddGeometry("cylinder", cylinder, XMFLOAT4(Colors::DeepPink));
-	//_geoLib.AddGeometry("grid", grid);
+	_geoLib.AddGeometry("grid", grid);
 	_geoLib.AddGeometry("skull", skull, XMFLOAT4(Colors::LightPink));
 
 	// Once all are added:
@@ -277,12 +276,18 @@ void D3DRenderer::BuildMaterial()
 	auto skullMat = std::make_unique<Material>();
 	skullMat->name = "skull";
 	skullMat->_matCBIndex = 0;
-	skullMat->_matProperties._diffuseAlbedo = { 0.4f, 0.1f, 0.1f, 1.f };
+	skullMat->_matProperties._diffuseAlbedo = { 0.1f, 0.05f, 0.025f, 1.0f };
+	skullMat->_matProperties._fresnelR0 = { 0.955f, 0.637f, 0.538f };
+	skullMat->_matProperties._roughness = 0.15f;
+
 
 	auto skullMat1 = std::make_unique<Material>();
 	skullMat1->name = "skull1";
 	skullMat1->_matCBIndex = 1;
-	skullMat1->_matProperties._diffuseAlbedo = { 0.1f, 0.4f, 0.1f, 1.f };
+	skullMat1->_matProperties._diffuseAlbedo = { 0.12f, 0.10f, 0.05f, 1.0f };
+	skullMat1->_matProperties._fresnelR0 = { 1.000f, 0.766f, 0.336f };
+	skullMat1->_matProperties._roughness = 0.15f;
+
 
 	_geoLib.AddMaterial(skullMat->name, std::move(skullMat));
 	_geoLib.AddMaterial(skullMat1->name, std::move(skullMat1));
@@ -290,13 +295,13 @@ void D3DRenderer::BuildMaterial()
 
 void D3DRenderer::BuildScene()
 {
-	//_scene.AddInstance("grid");
+	//_scene.AddInstance("grid", "skull1");
 	for (float theta = 0, i = 0; theta < 2.f * d3dUtil::PI; theta += (d3dUtil::PI / 5.f), i++)
 	{
 		if ((int)i % 2 == 0)
-			_scene.AddInstance("skull", "skull", d3dUtil::MatToFloat(XMMatrixRotationZ(theta) * XMMatrixTranslation(12.f * cosf(theta), 12.f * sinf(theta) + 10.f, 0.f)));
+			_scene.AddInstance("skull", "skull", d3dUtil::MatToFloat4x4(XMMatrixRotationZ(theta) * XMMatrixTranslation(12.f * cosf(theta), 12.f * sinf(theta) + 10.f, 0.f)));
 		else
-			_scene.AddInstance("skull", "skull1", d3dUtil::MatToFloat(XMMatrixRotationZ(theta) * XMMatrixTranslation(12.f * cosf(theta), 12.f * sinf(theta) + 10.f, 0.f)));
+			_scene.AddInstance("skull", "skull1", d3dUtil::MatToFloat4x4(XMMatrixRotationZ(theta) * XMMatrixTranslation(12.f * cosf(theta), 12.f * sinf(theta) + 10.f, 0.f)));
 	}
 	//_scene.AddInstance("skull", "skull");
 	//_scene.AddInstance("skull");
@@ -582,12 +587,12 @@ void D3DRenderer::UpdateModels(const Timer& t)
 
 	for (auto& t : threads)
 		t.join();*/
-	for (size_t i = _geoLib.GetSubmesh("skull")._baseVertexLocation; i < numElem; i++)
+	/*for (size_t i = _geoLib.GetSubmesh("skull")._baseVertexLocation; i < numElem; i++)
 	{
 		Vertex v = *(vertices + i);
 		XMVECTOR pos = XMLoadFloat3(&v.Pos);
 		_geoLib.GetMesh()->_vertexGPU->CopyData(static_cast<UINT>(i), v);
-	}
+	}*/
 }
 
 void D3DRenderer::UpdateObjCB(const Timer& t)
@@ -636,8 +641,25 @@ void D3DRenderer::UpdatePassCB(const Timer& t)
 	_mainPassCB.TotalTime = t.TotalTime();
 	_mainPassCB.DeltaTime = t.DeltaTime();
 	_mainPassCB.AmbientLight = { 0.25f, 0.25f, 0.35f, 1.0f };
-	_mainPassCB.Lights[0].Direction = { 0.57735f, -0.57735f, 0.57735f };
-	_mainPassCB.Lights[0].Strength = { 0.6f, 0.6f, 0.6f };
+
+	// Direction Light
+	_mainPassCB.Lights[0].Direction = { 0.57735f, -0.57735f, 0.57735f }; // 30 degrees x, y and z
+	_mainPassCB.Lights[0].Strength = { 1.0f, 0.9f, 0.7f };
+
+	// Point Light
+	/*_mainPassCB.Lights[0].Strength = { 1.0f, 0.85f, 0.6f };
+	_mainPassCB.Lights[0].FalloffStart = 1.0f;
+	_mainPassCB.Lights[0].FalloffEnd = 1000.0f;
+	_mainPassCB.Lights[0].Position = { 0.0f, 10.0f, 0.0f };*/
+
+	// Spot Light
+	/*_mainPassCB.Lights[0].Strength = { 1.0f, 0.95f, 0.8f };
+	_mainPassCB.Lights[0].FalloffStart = 2.0f;
+	_mainPassCB.Lights[0].FalloffEnd = 1000.0f;
+	_mainPassCB.Lights[0].Position = XMFLOAT3(_cameraPos.x, _cameraPos.y, _cameraPos.z);
+	_mainPassCB.Lights[0].Direction = { 0.0f, -0.7f, 0.7f };
+	_mainPassCB.Lights[0].SpotPower = 32.0f;*/
+
 
 	_currFrameResource->_pass->CopyData(0, _mainPassCB);
 }
