@@ -12,7 +12,6 @@ struct Vertex
 struct ConstantBuffer
 {
 	DirectX::XMFLOAT4X4 world = d3dUtil::Identity4x4();
-	DirectX::XMFLOAT4X4 inverseTranspose = d3dUtil::Identity4x4();
 };
 
 struct Light

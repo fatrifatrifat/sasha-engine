@@ -260,12 +260,12 @@ void D3DRenderer::BuildGeometry()
 	{
 		auto& pos = grid.Vertices[i].Position;
 		pos.y = 0.3f * (pos.z * sinf(0.1f * pos.x) + pos.x * cosf(0.1f * pos.z));
-		grid.Vertices[i].Color = i % 2 ? XMFLOAT3(0.f, 0.f, 0.f) : XMFLOAT3(1.f, 1.f, 1.f);
+		grid.Vertices[i].Color = i % 2 ? XMFLOAT4(0.f, 0.f, 0.f, 1.f) : XMFLOAT4(1.f, 1.f, 1.f, 1.f);
 	}
-	_geoLib.AddGeometry("box", box, XMFLOAT4(Colors::LightPink));
-	_geoLib.AddGeometry("sphere", geoSphere, XMFLOAT4(Colors::Pink));
-	_geoLib.AddGeometry("cylinder", cylinder, XMFLOAT4(Colors::DeepPink));
-	_geoLib.AddGeometry("grid", grid);
+	//_geoLib.AddGeometry("box", box, XMFLOAT4(Colors::LightPink));
+	//_geoLib.AddGeometry("sphere", geoSphere, XMFLOAT4(Colors::Pink));
+	//_geoLib.AddGeometry("cylinder", cylinder, XMFLOAT4(Colors::DeepPink));
+	//_geoLib.AddGeometry("grid", grid);
 	_geoLib.AddGeometry("skull", skull, XMFLOAT4(Colors::LightPink));
 
 	// Once all are added:
@@ -277,14 +277,29 @@ void D3DRenderer::BuildMaterial()
 	auto skullMat = std::make_unique<Material>();
 	skullMat->name = "skull";
 	skullMat->_matCBIndex = 0;
+	skullMat->_matProperties._diffuseAlbedo = { 0.4f, 0.1f, 0.1f, 1.f };
+
+	auto skullMat1 = std::make_unique<Material>();
+	skullMat1->name = "skull1";
+	skullMat1->_matCBIndex = 1;
+	skullMat1->_matProperties._diffuseAlbedo = { 0.1f, 0.4f, 0.1f, 1.f };
+
 	_geoLib.AddMaterial(skullMat->name, std::move(skullMat));
+	_geoLib.AddMaterial(skullMat1->name, std::move(skullMat1));
 }
 
 void D3DRenderer::BuildScene()
 {
 	//_scene.AddInstance("grid");
-	for (float theta = 0; theta < 2.f * d3dUtil::PI; theta += (d3dUtil::PI / 5.f))
-		_scene.AddInstance("skull", "skull", d3dUtil::MatToFloat(XMMatrixRotationZ(theta) * XMMatrixTranslation(12.f * cosf(theta), 12.f * sinf(theta) + 10.f, 0.f)));
+	for (float theta = 0, i = 0; theta < 2.f * d3dUtil::PI; theta += (d3dUtil::PI / 5.f), i++)
+	{
+		if ((int)i % 2 == 0)
+			_scene.AddInstance("skull", "skull", d3dUtil::MatToFloat(XMMatrixRotationZ(theta) * XMMatrixTranslation(12.f * cosf(theta), 12.f * sinf(theta) + 10.f, 0.f)));
+		else
+			_scene.AddInstance("skull", "skull1", d3dUtil::MatToFloat(XMMatrixRotationZ(theta) * XMMatrixTranslation(12.f * cosf(theta), 12.f * sinf(theta) + 10.f, 0.f)));
+	}
+	//_scene.AddInstance("skull", "skull");
+	//_scene.AddInstance("skull");
 
 	_scene.BuildRenderItems(_geoLib);
 }
@@ -293,7 +308,7 @@ void D3DRenderer::BuildFrameResources()
 {
 	// Build the Frame Resources
 	for (int i = 0; i < _frameResourceCount; i++)
-		_frameResources.push_back(std::make_unique<FrameResource>(_device.Get(), 1u, static_cast<UINT>(_scene.GetRenderItems().size())));
+		_frameResources.push_back(std::make_unique<FrameResource>(_device.Get(), 1u, _scene.GetRenderItems().size(), 2u));
 }
 
 void D3DRenderer::BuildCbvDescriptorHeap()
@@ -483,7 +498,7 @@ void D3DRenderer::DrawFrame()
 	//passCbvHandle.Offset(passCbvIndex, _cbvDescriptorSize);
 	//_cmdList->Get()->SetGraphicsRootDescriptorTable(1, _cbvHeap->GetGPUStart(passCbvIndex));
 
-	_cmdList->Get()->SetGraphicsRootConstantBufferView(1, _currFrameResource->_pass->GetResource()->GetGPUVirtualAddress());
+	_cmdList->Get()->SetGraphicsRootConstantBufferView(2, _currFrameResource->_pass->GetResource()->GetGPUVirtualAddress());
 
 	for (const auto& ri : _scene.GetRenderItems())
 	{
@@ -499,12 +514,13 @@ void D3DRenderer::DrawFrame()
 		//cbvHandle.Offset(cbvIndex, _cbvDescriptorSize);
 
 		//_cmdList->Get()->SetGraphicsRootDescriptorTable(0, _cbvHeap->GetGPUStart(cbvIndex));
-		auto address = _currFrameResource->_cb->GetResource()->GetGPUVirtualAddress();
-		address += ri->_cbObjIndex * d3dUtil::CalcConstantBufferSize(sizeof(ConstantBuffer));
-		_cmdList->Get()->SetGraphicsRootConstantBufferView(0, address);
+		auto addressObjCB = _currFrameResource->_cb->GetResource()->GetGPUVirtualAddress();
+		addressObjCB += ri->_cbObjIndex * d3dUtil::CalcConstantBufferSize(sizeof(ConstantBuffer));
+		_cmdList->Get()->SetGraphicsRootConstantBufferView(0, addressObjCB);
+
 		auto addressMat = _currFrameResource->_mat->GetResource()->GetGPUVirtualAddress();
 		addressMat += ri->_material->_matCBIndex * d3dUtil::CalcConstantBufferSize(sizeof(MaterialConstant));
-		_cmdList->Get()->SetGraphicsRootConstantBufferView(2, addressMat);
+		_cmdList->Get()->SetGraphicsRootConstantBufferView(1, addressMat);
 
 		_cmdList->Get()->DrawIndexedInstanced(ri->_indexCount, 1u, ri->_startIndex, ri->_baseVertex, 0u);
 	}
@@ -545,7 +561,7 @@ void D3DRenderer::UpdateModels(const Timer& t)
 {
 	Vertex* vertices = (Vertex*)_geoLib.GetMesh()->_vertexCPU->GetBufferPointer();
 	size_t numElem = static_cast<UINT>((_geoLib.GetMesh()->_vertexByteSize / sizeof(Vertex)));
-	auto fGrid = [&](size_t start, size_t end)
+	/*auto fGrid = [&](size_t start, size_t end)
 		{
 			for (; start < end; start++)
 			{
@@ -565,7 +581,7 @@ void D3DRenderer::UpdateModels(const Timer& t)
 	fGrid(blockSize * availableThread, blockSize * availableThread + remainder);
 
 	for (auto& t : threads)
-		t.join();
+		t.join();*/
 	for (size_t i = _geoLib.GetSubmesh("skull")._baseVertexLocation; i < numElem; i++)
 	{
 		Vertex v = *(vertices + i);
@@ -582,7 +598,6 @@ void D3DRenderer::UpdateObjCB(const Timer& t)
 		XMMATRIX world = XMLoadFloat4x4(&e->_world);
 		ConstantBuffer cb;
 		XMStoreFloat4x4(&cb.world, XMMatrixTranspose(world));
-		XMStoreFloat4x4(&cb.inverseTranspose, XMMatrixTranspose(d3dUtil::InverseTranspose(world)));
 
 		currObjCB->CopyData(e->_cbObjIndex, cb);
 	}
@@ -620,22 +635,25 @@ void D3DRenderer::UpdatePassCB(const Timer& t)
 	_mainPassCB.FarZ = 1000.0f;
 	_mainPassCB.TotalTime = t.TotalTime();
 	_mainPassCB.DeltaTime = t.DeltaTime();
+	_mainPassCB.AmbientLight = { 0.25f, 0.25f, 0.35f, 1.0f };
+	_mainPassCB.Lights[0].Direction = { 0.57735f, -0.57735f, 0.57735f };
+	_mainPassCB.Lights[0].Strength = { 0.6f, 0.6f, 0.6f };
 
 	_currFrameResource->_pass->CopyData(0, _mainPassCB);
 }
 
 void D3DRenderer::UpdateMatCB(const Timer& t)
 {
+	auto currMatCB = _currFrameResource->_mat.get();
 	for (auto& e : _scene.GetRenderItems())
 	{
-		XMMATRIX matTransform = XMLoadFloat4x4(&e->_material->_matProperties._transform);
+		XMMATRIX transform = XMLoadFloat4x4(&e->_material->_matProperties._transform);
+		MaterialConstant cb;
+		cb._diffuseAlbedo = e->_material->_matProperties._diffuseAlbedo;
+		cb._fresnelR0 = e->_material->_matProperties._fresnelR0;
+		cb._roughness = e->_material->_matProperties._roughness;
+		XMStoreFloat4x4(&cb._transform, XMMatrixTranspose(transform));
 
-		MaterialConstant mat;
-		mat._diffuseAlbedo = e->_material->_matProperties._diffuseAlbedo;
-		mat._fresnelR0 = e->_material->_matProperties._fresnelR0;
-		mat._roughness = e->_material->_matProperties._roughness;
-		XMStoreFloat4x4(&mat._transform, XMMatrixTranspose(matTransform));
-
-		_currFrameResource->_mat->CopyData(e->_material->_matCBIndex, mat);
+		currMatCB->CopyData(e->_material->_matCBIndex, cb);
 	}
 }

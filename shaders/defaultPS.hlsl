@@ -1,26 +1,14 @@
-struct Light
+#include "LightingUtil.hlsl"
+
+cbuffer cbMaterial : register(b1)
 {
-    float3 Strength;
-    float FalloffStart; // point/spot light only
-    float3 Direction; // directional/spot light only
-    float FalloffEnd; // point/spot light only
-    float3 Position; // point light only
-    float SpotPower; // spot light only
+    float4 gDiffuseAlbedo;
+    float3 gFresnelR0;
+    float gRoughness;
+    float4x4 gMatTransform;
 };
 
-struct Material
-{
-    float4 DiffuseAlbedo;
-    float3 FresnelR0;
-    float Shininess;
-};
-
-cbuffer cbPerObject : register(b0)
-{
-    float4x4 gWorld;
-};
-
-cbuffer cbPass : register(b1)
+cbuffer cbPass : register(b2)
 {
     float4x4 gView;
     float4x4 gInvView;
@@ -37,25 +25,31 @@ cbuffer cbPass : register(b1)
     float gTotalTime;
     float gDeltaTime;
     float4 gAmbientLight;
-    
-    Light gLights[16];
-};
 
-cbuffer cbMaterial : register(b2)
-{
-    float4 gDiffuseAlbedo;
-    float3 gFresnelR0;
-    float gRoughness;
-    float4x4 gMatTransform;
-}
+    // Indices [0, NUM_DIR_LIGHTS) are directional lights;
+    // indices [NUM_DIR_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHTS) are point lights;
+    // indices [NUM_DIR_LIGHTS+NUM_POINT_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHT+NUM_SPOT_LIGHTS)
+    // are spot lights for a maximum of MaxLights per object.
+    Light gLights[MaxLights];
+};
 
 struct VertexIn
 {
     float4 PosH : SV_POSITION;
     float4 Color : COLOR;
+    float3 Normal : NORMAL;
 };
 
 float4 main(VertexIn vin) : SV_TARGET
 {
-    return vin.Color;
+    vin.Normal = normalize(vin.Normal);
+    
+    float4 ambient = gAmbientLight * gDiffuseAlbedo;
+    const float shininess = 1 - gRoughness;
+    
+    Material mat = { gDiffuseAlbedo, gFresnelR0, shininess };
+    float3 shadowFactor = 1.f;
+    //float4 dirLight = ComputeDirectionalLight(gLights, mat, vin.PosH)
+    
+    return ambient;
 }
