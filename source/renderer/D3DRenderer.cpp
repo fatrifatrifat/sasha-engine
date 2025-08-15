@@ -255,12 +255,15 @@ void D3DRenderer::BuildGeometry()
 	auto grid = g.CreateGrid(160.f, 160.f, 100, 100);
 	std::filesystem::path skullPath = std::filesystem::current_path() / ".." / "assets" / "models" / "skull.txt";
 	auto skull = g.ReadFile(skullPath.string());
-	/*for (size_t i = 0; i < grid.Vertices.size(); i++)
+	for (size_t i = 0; i < grid.Vertices.size(); i++)
 	{
 		auto& pos = grid.Vertices[i].Position;
+		auto& normal = grid.Vertices[i].Normal;
 		pos.y = 0.3f * (pos.z * sinf(0.1f * pos.x) + pos.x * cosf(0.1f * pos.z));
-		grid.Vertices[i].Color = i % 2 ? XMFLOAT4(0.f, 0.f, 0.f, 1.f) : XMFLOAT4(1.f, 1.f, 1.f, 1.f);
-	}*/
+		normal.x = -0.03f * pos.z * cosf(0.1f * pos.x) - 0.3f * cosf(0.1f * pos.z);
+		normal.y = 1.f;
+		normal.z = -0.3f * sinf(0.1f * pos.x) + 0.03f * pos.x * sinf(0.1f * pos.z);
+	}
 	//_geoLib.AddGeometry("box", box, XMFLOAT4(Colors::LightPink));
 	//_geoLib.AddGeometry("sphere", geoSphere, XMFLOAT4(Colors::Pink));
 	//_geoLib.AddGeometry("cylinder", cylinder, XMFLOAT4(Colors::DeepPink));
@@ -295,16 +298,14 @@ void D3DRenderer::BuildMaterial()
 
 void D3DRenderer::BuildScene()
 {
-	//_scene.AddInstance("grid", "skull1");
-	for (float theta = 0, i = 0; theta < 2.f * d3dUtil::PI; theta += (d3dUtil::PI / 5.f), i++)
+	_scene.AddInstance("grid", "skull1");
+	/*for (float theta = 0, i = 0; theta < 2.f * d3dUtil::PI; theta += (d3dUtil::PI / 5.f), i++)
 	{
 		if ((int)i % 2 == 0)
 			_scene.AddInstance("skull", "skull", d3dUtil::MatToFloat4x4(XMMatrixRotationZ(theta) * XMMatrixTranslation(12.f * cosf(theta), 12.f * sinf(theta) + 10.f, 0.f)));
 		else
 			_scene.AddInstance("skull", "skull1", d3dUtil::MatToFloat4x4(XMMatrixRotationZ(theta) * XMMatrixTranslation(12.f * cosf(theta), 12.f * sinf(theta) + 10.f, 0.f)));
-	}
-	//_scene.AddInstance("skull", "skull");
-	//_scene.AddInstance("skull");
+	}*/
 
 	_scene.BuildRenderItems(_geoLib);
 }
@@ -313,7 +314,7 @@ void D3DRenderer::BuildFrameResources()
 {
 	// Build the Frame Resources
 	for (int i = 0; i < _frameResourceCount; i++)
-		_frameResources.push_back(std::make_unique<FrameResource>(_device.Get(), 1u, _scene.GetRenderItems().size(), 2u));
+		_frameResources.push_back(std::make_unique<FrameResource>(_device.Get(), 1u, static_cast<UINT>(_scene.GetRenderItems().size()), static_cast<UINT>(_geoLib.GetMaterialCount())));
 }
 
 void D3DRenderer::BuildCbvDescriptorHeap()
@@ -322,9 +323,10 @@ void D3DRenderer::BuildCbvDescriptorHeap()
 	// Making a heap capable of holding 3n + 3 descriptors
 	// 3n so each object can have their own frame resource on each frame resource
 	// + 3 so each frame resource has access to it's global constant buffer that's non unique to each object
-	UINT descriptorHeapCount = static_cast<UINT>(((_scene.GetRenderItems().size() + 1) * _frameResourceCount));
+	UINT descriptorHeapCount = static_cast<UINT>(((_scene.GetRenderItems().size() + 1 + _geoLib.GetMaterialCount()) * _frameResourceCount));
 	// Getting the index at which the global constant buffers are, right after all the unique constant buffers
 	_passCbvOffset = static_cast<UINT>((_frameResourceCount * _scene.GetRenderItems().size()));
+	_matCbvOffset = _passCbvOffset + _frameResourceCount;
 
 	_cbvHeap = std::make_unique<DescriptorHeap>(_device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, descriptorHeapCount, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 }
@@ -335,6 +337,7 @@ void D3DRenderer::BuildConstantBuffers()
 	// Getting the size of both cbs padded ceiled to a multiple of 256 for padding reasons on the shader and GPU side
 	UINT cbSize = d3dUtil::CalcConstantBufferSize(sizeof(ConstantBuffer));
 	UINT passSize = d3dUtil::CalcConstantBufferSize(sizeof(PassBuffer));
+	UINT matSize = d3dUtil::CalcConstantBufferSize(sizeof(MaterialConstant));
 
 	for (UINT i = 0; i < _frameResourceCount; i++)
 	{
@@ -357,6 +360,20 @@ void D3DRenderer::BuildConstantBuffers()
 			_device->CreateConstantBufferView(&cbvDesc, _cbvHeap->GetCPUStart(heapIndex));
 		}
 
+		auto matCB = _frameResources[i]->_mat->GetResource();
+		for (UINT j = 0; j < _geoLib.GetMaterialCount(); j++)
+		{
+			D3D12_GPU_VIRTUAL_ADDRESS cbAddress = matCB->GetGPUVirtualAddress();
+			cbAddress += j * matSize;
+
+			int heapIndex = (int)(i * _geoLib.GetMaterialCount() + j + _matCbvOffset);
+
+			D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc{};
+			cbvDesc.BufferLocation = cbAddress;
+			cbvDesc.SizeInBytes = matSize;
+
+			_device->CreateConstantBufferView(&cbvDesc, _cbvHeap->GetCPUStart(heapIndex));
+		}
 		// Do something similar for the global constant buffers that are shared between objects in the same frame resource
 		auto passCB = _frameResources[i]->_pass->GetResource();
 		D3D12_GPU_VIRTUAL_ADDRESS cbAddress = passCB->GetGPUVirtualAddress();
@@ -377,6 +394,7 @@ void D3DRenderer::BuildRootSignature()
 	RootSignature rootBuilder;
 	//rootBuilder.AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1u, 0u);
 	//rootBuilder.AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1u, 1u);
+	//rootBuilder.AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1u, 2u);
 	rootBuilder.AddCBV(0u);
 	rootBuilder.AddCBV(1u);
 	rootBuilder.AddCBV(2u);
@@ -514,11 +532,13 @@ void D3DRenderer::DrawFrame()
 		_cmdList->Get()->IASetIndexBuffer(&ibv);
 		_cmdList->Get()->IASetPrimitiveTopology(ri->_primitiveType);
 
-		//UINT cbvIndex = _frameResourceIndex * static_cast<UINT>(_scene.GetRenderItems().size() + ri->_cbObjIndex;
+		//UINT cbvIndex = _frameResourceIndex * static_cast<UINT>(_scene.GetRenderItems().size() + ri->_cbObjIndex);
 		//auto cbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(_cbvHeap->GetGPUDescriptorHandleForHeapStart());
 		//cbvHandle.Offset(cbvIndex, _cbvDescriptorSize);
+		//UINT matIndex = _frameResourceIndex * static_cast<UINT>(_geoLib.GetMaterialCount() + ri->_material->_matCBIndex) + _matCbvOffset;
 
 		//_cmdList->Get()->SetGraphicsRootDescriptorTable(0, _cbvHeap->GetGPUStart(cbvIndex));
+		//_cmdList->Get()->SetGraphicsRootDescriptorTable(1, _cbvHeap->GetGPUStart(matIndex));
 		auto addressObjCB = _currFrameResource->_cb->GetResource()->GetGPUVirtualAddress();
 		addressObjCB += ri->_cbObjIndex * d3dUtil::CalcConstantBufferSize(sizeof(ConstantBuffer));
 		_cmdList->Get()->SetGraphicsRootConstantBufferView(0, addressObjCB);
@@ -566,12 +586,15 @@ void D3DRenderer::UpdateModels(const Timer& t)
 {
 	Vertex* vertices = (Vertex*)_geoLib.GetMesh()->_vertexCPU->GetBufferPointer();
 	size_t numElem = static_cast<UINT>((_geoLib.GetMesh()->_vertexByteSize / sizeof(Vertex)));
-	/*auto fGrid = [&](size_t start, size_t end)
+	auto fGrid = [&](size_t start, size_t end)
 		{
 			for (; start < end; start++)
 			{
 				Vertex v = *(vertices + start);
 				v.Pos.y = v.Pos.y = 0.3f * ((v.Pos.z * sin(0.1f * v.Pos.x + 2.f * t.TotalTime())) + v.Pos.x * cos(0.1f * v.Pos.z + 2.f * t.TotalTime()));
+				v.Normal.x = -0.03f * v.Pos.z * cosf(0.1f * v.Pos.x) - 0.3f * cosf(0.1f * v.Pos.z);
+				v.Normal.y = 1.f;
+				v.Normal.z = -0.3f * sinf(0.1f * v.Pos.x) + 0.03f * v.Pos.x * sinf(0.1f * v.Pos.z);
 				_geoLib.GetMesh()->_vertexGPU->CopyData(static_cast<UINT>(start), v);
 			}
 		};
@@ -586,7 +609,7 @@ void D3DRenderer::UpdateModels(const Timer& t)
 	fGrid(blockSize * availableThread, blockSize * availableThread + remainder);
 
 	for (auto& t : threads)
-		t.join();*/
+		t.join();
 	/*for (size_t i = _geoLib.GetSubmesh("skull")._baseVertexLocation; i < numElem; i++)
 	{
 		Vertex v = *(vertices + i);
@@ -600,11 +623,15 @@ void D3DRenderer::UpdateObjCB(const Timer& t)
 	auto currObjCB = _currFrameResource->_cb.get();
 	for (auto& e : _scene.GetRenderItems())
 	{
-		XMMATRIX world = XMLoadFloat4x4(&e->_world);
-		ConstantBuffer cb;
-		XMStoreFloat4x4(&cb.world, XMMatrixTranspose(world));
+		if (e->_numDirtyFlags > 0)
+		{
+			XMMATRIX world = XMLoadFloat4x4(&e->_world);
+			ConstantBuffer cb;
+			XMStoreFloat4x4(&cb.world, XMMatrixTranspose(world));
+			currObjCB->CopyData(e->_cbObjIndex, cb);
 
-		currObjCB->CopyData(e->_cbObjIndex, cb);
+			e->_numDirtyFlags--;
+		}
 	}
 }
 
@@ -643,20 +670,20 @@ void D3DRenderer::UpdatePassCB(const Timer& t)
 	_mainPassCB.AmbientLight = { 0.25f, 0.25f, 0.35f, 1.0f };
 
 	// Direction Light
-	_mainPassCB.Lights[0].Direction = { 0.57735f, -0.57735f, 0.57735f }; // 30 degrees x, y and z
-	_mainPassCB.Lights[0].Strength = { 1.0f, 0.9f, 0.7f };
+	//_mainPassCB.Lights[0].Direction = { 0.57735f, -0.57735f, 0.57735f }; // 30 degrees x, y and z
+	//_mainPassCB.Lights[0].Strength = { 1.0f, 0.9f, 0.7f };
 
 	// Point Light
-	/*_mainPassCB.Lights[0].Strength = { 1.0f, 0.85f, 0.6f };
+	_mainPassCB.Lights[0].Strength = { 1.0f, 0.85f, 0.6f };
 	_mainPassCB.Lights[0].FalloffStart = 1.0f;
 	_mainPassCB.Lights[0].FalloffEnd = 1000.0f;
-	_mainPassCB.Lights[0].Position = { 0.0f, 10.0f, 0.0f };*/
+	_mainPassCB.Lights[0].Position = { 0.0f, 10.0f, 0.0f };
 
 	// Spot Light
 	/*_mainPassCB.Lights[0].Strength = { 1.0f, 0.95f, 0.8f };
 	_mainPassCB.Lights[0].FalloffStart = 2.0f;
-	_mainPassCB.Lights[0].FalloffEnd = 1000.0f;
-	_mainPassCB.Lights[0].Position = XMFLOAT3(_cameraPos.x, _cameraPos.y, _cameraPos.z);
+	_mainPassCB.Lights[0].FalloffEnd = 15.0f;
+	_mainPassCB.Lights[0].Position = { 0.0f, 3.0f, 0.0f };
 	_mainPassCB.Lights[0].Direction = { 0.0f, -0.7f, 0.7f };
 	_mainPassCB.Lights[0].SpotPower = 32.0f;*/
 
@@ -669,13 +696,19 @@ void D3DRenderer::UpdateMatCB(const Timer& t)
 	auto currMatCB = _currFrameResource->_mat.get();
 	for (auto& e : _scene.GetRenderItems())
 	{
-		XMMATRIX transform = XMLoadFloat4x4(&e->_material->_matProperties._transform);
-		MaterialConstant cb;
-		cb._diffuseAlbedo = e->_material->_matProperties._diffuseAlbedo;
-		cb._fresnelR0 = e->_material->_matProperties._fresnelR0;
-		cb._roughness = e->_material->_matProperties._roughness;
-		XMStoreFloat4x4(&cb._transform, XMMatrixTranspose(transform));
+		if (e->_material->_numDirtyFlags > 0)
+		{
+			XMMATRIX transform = XMLoadFloat4x4(&e->_material->_matProperties._transform);
+			MaterialConstant cb;
+			cb._diffuseAlbedo = e->_material->_matProperties._diffuseAlbedo;
+			cb._fresnelR0 = e->_material->_matProperties._fresnelR0;
+			cb._roughness = e->_material->_matProperties._roughness;
+			XMStoreFloat4x4(&cb._transform, XMMatrixTranspose(transform));
 
-		currMatCB->CopyData(e->_material->_matCBIndex, cb);
+			currMatCB->CopyData(e->_material->_matCBIndex, cb);
+			
+			e->_material->_numDirtyFlags--;
+		}
+		
 	}
 }

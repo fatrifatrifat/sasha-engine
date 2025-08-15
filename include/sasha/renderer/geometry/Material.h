@@ -12,8 +12,8 @@ struct MaterialConstant
 struct Material
 {
 	std::string name = "";
-
 	int _matCBIndex = -1;
-
+	int _diffuseSrvHeapIndex = -1;
+	int _numDirtyFlags = 3;
 	MaterialConstant _matProperties;
 };

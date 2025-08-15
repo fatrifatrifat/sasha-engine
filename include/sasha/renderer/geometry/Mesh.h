@@ -140,4 +140,6 @@ struct RenderItem
 	UINT _baseVertex = 0u;
 
 	UINT _hasMoved = true;
+
+	int _numDirtyFlags = 3;
 };

@@ -105,6 +105,7 @@ private:
 
 	PassBuffer _mainPassCB;
 	UINT _passCbvOffset = 0u;
+	UINT _matCbvOffset = 0u;
 	std::unique_ptr<DescriptorHeap> _cbvHeap;
 
 	std::array<ComPtr<ID3D12PipelineState>, 2> _pso;

@@ -14,6 +14,7 @@ public:
     MeshGeometry* GetMesh();
     const SubmeshGeometry& GetSubmesh(const std::string& name) const;
     Material* GetMaterial(const std::string& name) const;
+    size_t GetMaterialCount() const noexcept;
 
 private:
     std::vector<Vertex> _vertices;

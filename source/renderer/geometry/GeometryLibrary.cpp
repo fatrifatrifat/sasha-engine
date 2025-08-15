@@ -59,3 +59,8 @@ Material* GeometryLibrary::GetMaterial(const std::string& name) const
 {
     return _materials.at(name).get();
 }
+
+size_t GeometryLibrary::GetMaterialCount() const noexcept
+{
+    return _materials.size();
+}
