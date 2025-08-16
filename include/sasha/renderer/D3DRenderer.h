@@ -108,6 +108,10 @@ private:
 	UINT _matCbvOffset = 0u;
 	std::unique_ptr<DescriptorHeap> _cbvHeap;
 
+	float _lightTheta = 1.25f * XM_PI;
+	float _lightPhi = 0.1f;
+
+
 	std::array<ComPtr<ID3D12PipelineState>, 2> _pso;
 	ComPtr<ID3D12RootSignature> _rootSignature;
 };
