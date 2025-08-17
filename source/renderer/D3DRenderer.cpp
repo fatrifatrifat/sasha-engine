@@ -6,12 +6,15 @@ D3DRenderer::D3DRenderer(HWND wh, int w, int h)
 	: _wndHandle(wh)
 	, _appWidth(w)
 	, _appHeight(h)
-{}
+{
+	_eventHandle = CreateEventEx(nullptr, nullptr, false, EVENT_ALL_ACCESS);
+}
 
 D3DRenderer::~D3DRenderer()
 {
 	if (_device)
 		_cmdQueue->Flush();
+	CloseHandle(_eventHandle);
 }
 
 void D3DRenderer::d3dInit()
@@ -28,6 +31,7 @@ void D3DRenderer::d3dInit()
 	BuildInputLayout();
 	BuildGeometry();
 	BuildMaterial();
+	BuildLights();
 	BuildScene();
 	BuildFrameResources();
 	//BuildCbvDescriptorHeap();
@@ -60,10 +64,8 @@ void D3DRenderer::Update(Timer& t)
 
 	if (_currFrameResource->_fence != 0 && _cmdQueue->GetFence()->GetCompletedValue() < _currFrameResource->_fence)
 	{
-		HANDLE eventHandle = CreateEventEx(nullptr, nullptr, false, EVENT_ALL_ACCESS);
-		_cmdQueue->GetFence()->SetEventOnCompletion(_currFrameResource->_fence, eventHandle);
-		WaitForSingleObject(eventHandle, INFINITE);
-		CloseHandle(eventHandle);
+		_cmdQueue->GetFence()->SetEventOnCompletion(_currFrameResource->_fence, _eventHandle);
+		WaitForSingleObject(_eventHandle, INFINITE);
 	}
 
 	UpdateModels(t);
@@ -255,20 +257,12 @@ void D3DRenderer::BuildGeometry()
 	auto grid = g.CreateGrid(160.f, 160.f, 100, 100);
 	std::filesystem::path skullPath = std::filesystem::current_path() / ".." / "assets" / "models" / "skull.txt";
 	auto skull = g.ReadFile(skullPath.string());
-	/*for (size_t i = 0; i < grid.Vertices.size(); i++)
-	{
-		auto& pos = grid.Vertices[i].Position;
-		auto& normal = grid.Vertices[i].Normal;
-		pos.y = 0.3f * (pos.z * sinf(0.1f * pos.x) + pos.x * cosf(0.1f * pos.z));
-		normal.x = -0.03f * pos.z * cosf(0.1f * pos.x) - 0.3f * cosf(0.1f * pos.z);
-		normal.y = 1.f;
-		normal.z = -0.3f * sinf(0.1f * pos.x) + 0.03f * pos.x * sinf(0.1f * pos.z);
-	}*/
-	_geoLib.AddGeometry("box", box, XMFLOAT4(Colors::LightPink));
-	_geoLib.AddGeometry("sphere", geoSphere, XMFLOAT4(Colors::Pink));
-	_geoLib.AddGeometry("cylinder", cylinder, XMFLOAT4(Colors::DeepPink));
+
+	_geoLib.AddGeometry("box", box);
+	_geoLib.AddGeometry("sphere", geoSphere);
+	_geoLib.AddGeometry("cylinder", cylinder);
 	_geoLib.AddGeometry("grid", grid);
-	_geoLib.AddGeometry("skull", skull, XMFLOAT4(Colors::LightPink));
+	_geoLib.AddGeometry("skull", skull);
 
 	// Once all are added:
 	_geoLib.Upload(_device.Get(), _cmdList->Get());
@@ -324,6 +318,21 @@ void D3DRenderer::BuildMaterial()
 	_geoLib.AddMaterial(cylinderMat->name, std::move(cylinderMat));
 	_geoLib.AddMaterial(gridMat->name, std::move(gridMat));
 	_geoLib.AddMaterial(hillMat->name, std::move(hillMat));
+}
+
+void D3DRenderer::BuildLights()
+{
+	for (float theta = 0; theta < 2.f * d3dUtil::PI; theta += (d3dUtil::PI / 5.f))
+	{
+		Light light;
+		light.Strength = { 1.0f, 0.95f, 0.8f };
+		light.FalloffStart = 2.0f;
+		light.FalloffEnd = 10000.0f;
+		light.Position = { 12.f * cosf(theta), 5.f, 12.f * sinf(theta) };
+		light.Direction = { 0.0f, -1.f, 0.f };
+		light.SpotPower = 32.0f;
+		_scene.AddLight(light);
+	}
 }
 
 void D3DRenderer::BuildScene()
@@ -530,7 +539,6 @@ void D3DRenderer::BeginFrame()
 
 void D3DRenderer::DrawFrame()
 {
-	
 	_cmdList->Get()->RSSetViewports(1, &_vp);
 	_cmdList->Get()->RSSetScissorRects(1, &_scissor);
 
@@ -555,8 +563,8 @@ void D3DRenderer::DrawFrame()
 
 	for (const auto& ri : _scene.GetRenderItems())
 	{
-		auto vbv = ri->_mesh->VertexBufferView();
-		auto ibv = ri->_mesh->IndexBufferView();
+		auto vbv = _geoLib.GetMesh()->VertexBufferView();
+		auto ibv = _geoLib.GetMesh()->IndexBufferView();
 
 		_cmdList->Get()->IASetVertexBuffers(0, 1, &vbv);
 		_cmdList->Get()->IASetIndexBuffer(&ibv);
@@ -573,11 +581,14 @@ void D3DRenderer::DrawFrame()
 		addressObjCB += ri->_cbObjIndex * d3dUtil::CalcConstantBufferSize(sizeof(ConstantBuffer));
 		_cmdList->Get()->SetGraphicsRootConstantBufferView(0, addressObjCB);
 
+		const auto& mat = _geoLib.GetMaterial(ri->_materialId);
+		const auto& submesh = _geoLib.GetSubmesh(ri->_submeshId);
+
 		auto addressMat = _currFrameResource->_mat->GetResource()->GetGPUVirtualAddress();
-		addressMat += ri->_material->_matCBIndex * d3dUtil::CalcConstantBufferSize(sizeof(MaterialConstant));
+		addressMat += mat->_matCBIndex * d3dUtil::CalcConstantBufferSize(sizeof(MaterialConstant));
 		_cmdList->Get()->SetGraphicsRootConstantBufferView(1, addressMat);
 
-		_cmdList->Get()->DrawIndexedInstanced(ri->_indexCount, 1u, ri->_startIndex, ri->_baseVertex, 0u);
+		_cmdList->Get()->DrawIndexedInstanced(submesh._indexCount, 1u, submesh._startIndexLocation, submesh._baseVertexLocation, 0u);
 	}
 }
 
@@ -596,8 +607,8 @@ void D3DRenderer::EndFrame()
 
 void D3DRenderer::UpdateCamera(const Timer& t)
 {
-	const float sunSpeed = 2.5f;
 
+	// Camera Control
 	if (_kbd->IsKeyPressed('W'))
 		_cameraPos.z += _cameraSpeed * t.DeltaTime();
 	else if (_kbd->IsKeyPressed('S'))
@@ -610,54 +621,26 @@ void D3DRenderer::UpdateCamera(const Timer& t)
 		_cameraPos.y += _cameraSpeed * t.DeltaTime();
 	else if (_kbd->IsKeyPressed(VK_CONTROL))
 		_cameraPos.y -= _cameraSpeed * t.DeltaTime();
+
+	// WireFrame Control
 	else if (_kbd->IsKeyPressed(VK_F2) && _kbd->WasKeyPressedThisFrame(VK_F2))
 		_isWireFrame = !_isWireFrame;
+
+	// Light Controll
 	else if (_kbd->IsKeyPressed(VK_UP))
-		_lightPhi -= sunSpeed * t.DeltaTime();
+		_lightPhi -= _sunSpeed * t.DeltaTime();
 	else if (_kbd->IsKeyPressed(VK_DOWN))
-		_lightPhi += sunSpeed * t.DeltaTime();
+		_lightPhi += _sunSpeed * t.DeltaTime();
 	else if (_kbd->IsKeyPressed(VK_LEFT))
-		_lightTheta -= sunSpeed * t.DeltaTime();
+		_lightTheta -= _sunSpeed * t.DeltaTime();
 	else if (_kbd->IsKeyPressed(VK_RIGHT))
-		_lightTheta += sunSpeed * t.DeltaTime();
+		_lightTheta += _sunSpeed * t.DeltaTime();
 
 	_lightPhi = std::clamp(_lightPhi, 0.1f, XM_PIDIV2);
 }
 
 void D3DRenderer::UpdateModels(const Timer& t)
 {
-	//Vertex* vertices = (Vertex*)_geoLib.GetMesh()->_vertexCPU->GetBufferPointer();
-	//size_t numElem = static_cast<UINT>((_geoLib.GetMesh()->_vertexByteSize / sizeof(Vertex)));
-	//auto fGrid = [&](size_t start, size_t end)
-	//	{
-	//		for (; start < end; start++)
-	//		{
-	//			Vertex v = *(vertices + start);
-	//			v.Pos.y = v.Pos.y = 0.3f * ((v.Pos.z * sin(0.1f * v.Pos.x + 2.f * t.TotalTime())) + v.Pos.x * cos(0.1f * v.Pos.z + 2.f * t.TotalTime()));
-	//			v.Normal.x = -0.03f * v.Pos.z * cosf(0.1f * v.Pos.x) - 0.3f * cosf(0.1f * v.Pos.z);
-	//			v.Normal.y = 1.f;
-	//			v.Normal.z = -0.3f * sinf(0.1f * v.Pos.x) + 0.03f * v.Pos.x * sinf(0.1f * v.Pos.z);
-	//			_geoLib.GetMesh()->_vertexGPU->CopyData(static_cast<UINT>(start), v);
-	//		}
-	//	};
-
-	//size_t elemToCompute = numElem - _geoLib.GetSubmesh("skull")._baseVertexLocation;
-	//size_t availableThread = std::thread::hardware_concurrency();
-	//size_t blockSize = elemToCompute / availableThread;
-	//size_t remainder = elemToCompute - blockSize * availableThread;
-	//std::vector<std::thread> threads(availableThread - 1);
-	//for (size_t i = 0; i < availableThread - 1; i++)
-	//	threads[i] = std::thread(fGrid, blockSize * i, blockSize * (i + 1));
-	//fGrid(blockSize * availableThread, blockSize * availableThread + remainder);
-
-	//for (auto& t : threads)
-	//	t.join();
-	//for (size_t i = _geoLib.GetSubmesh("skull")._baseVertexLocation; i < numElem; i++)
-	//{
-	//	Vertex v = *(vertices + i);
-	//	XMVECTOR pos = XMLoadFloat3(&v.Pos);
-	//	_geoLib.GetMesh()->_vertexGPU->CopyData(static_cast<UINT>(i), v);
-	//}
 }
 
 void D3DRenderer::UpdateObjCB(const Timer& t)
@@ -665,15 +648,12 @@ void D3DRenderer::UpdateObjCB(const Timer& t)
 	auto currObjCB = _currFrameResource->_cb.get();
 	for (auto& e : _scene.GetRenderItems())
 	{
-		//if (e->_numDirtyFlags > 0)
-		//{
-			XMMATRIX world = XMLoadFloat4x4(&e->_world);
-			ConstantBuffer cb;
-			XMStoreFloat4x4(&cb.world, XMMatrixTranspose(world));
-			currObjCB->CopyData(e->_cbObjIndex, cb);
+		XMMATRIX world = XMLoadFloat4x4(&e->_world);
+		ConstantBuffer cb;
+		XMStoreFloat4x4(&cb.world, XMMatrixTranspose(world));
+		currObjCB->CopyData(e->_cbObjIndex, cb);
 
-			e->_numDirtyFlags--;
-		//}
+		e->_numDirtyFlags--;
 	}
 }
 
@@ -727,7 +707,7 @@ void D3DRenderer::UpdatePassCB(const Timer& t)
 	_mainPassCB.Lights[0].Position = { 0.0f, 10.0f, 0.0f };*/
 
 	// Spot Light
-	int i = 0;
+	/*int i = 0;
 	for (float theta = 0; theta < 2.f * d3dUtil::PI; theta += (d3dUtil::PI / 5.f), ++i)
 	{
 		_mainPassCB.Lights[i].Strength = { 1.0f, 0.95f, 0.8f };
@@ -736,7 +716,11 @@ void D3DRenderer::UpdatePassCB(const Timer& t)
 		_mainPassCB.Lights[i].Position = { 12.f * cosf(theta), 5.f, 12.f * sinf(theta) };
 		_mainPassCB.Lights[i].Direction = { 0.0f, -1.f, 0.f };
 		_mainPassCB.Lights[i].SpotPower = 32.0f;
-	}
+	}*/
+
+	int i = 0;
+	for (; i < _scene.GetLights().size(); i++)
+		_mainPassCB.Lights[i] = _scene.GetLights().at(i);
 
 	XMVECTOR lightDir = -DirectX::XMVectorSet(
 		1.f * sinf(_lightPhi) * cosf(_lightTheta),
@@ -750,7 +734,6 @@ void D3DRenderer::UpdatePassCB(const Timer& t)
 	_mainPassCB.Lights[i].Position = { 0.f, 10.f, 0.f };
 	_mainPassCB.Lights[i].SpotPower = 8.0f;
 
-
 	_currFrameResource->_pass->CopyData(0, _mainPassCB);
 }
 
@@ -759,19 +742,14 @@ void D3DRenderer::UpdateMatCB(const Timer& t)
 	auto currMatCB = _currFrameResource->_mat.get();
 	for (auto& e : _scene.GetRenderItems())
 	{
-		//if (e->_material->_numDirtyFlags > 0)
-		//{
-			XMMATRIX transform = XMLoadFloat4x4(&e->_material->_matProperties._transform);
-			MaterialConstant cb;
-			cb._diffuseAlbedo = e->_material->_matProperties._diffuseAlbedo;
-			cb._fresnelR0 = e->_material->_matProperties._fresnelR0;
-			cb._roughness = e->_material->_matProperties._roughness;
-			XMStoreFloat4x4(&cb._transform, XMMatrixTranspose(transform));
+		const auto& mat = _geoLib.GetMaterial(e->_materialId);
+		XMMATRIX transform = XMLoadFloat4x4(&mat->_matProperties._transform);
+		MaterialConstant cb;
+		cb._diffuseAlbedo = mat->_matProperties._diffuseAlbedo;
+		cb._fresnelR0 = mat->_matProperties._fresnelR0;
+		cb._roughness = mat->_matProperties._roughness;
+		XMStoreFloat4x4(&cb._transform, XMMatrixTranspose(transform));
 
-			currMatCB->CopyData(e->_material->_matCBIndex, cb);
-			
-			e->_material->_numDirtyFlags--;
-		//}
-		
+		currMatCB->CopyData(mat->_matCBIndex, cb);
 	}
 }

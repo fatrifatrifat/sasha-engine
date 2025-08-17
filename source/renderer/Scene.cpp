@@ -5,6 +5,11 @@ void Scene::AddInstance(const std::string& meshName, const std::string& matName,
 	_instances.push_back({ meshName, transform, matName });
 }
 
+void Scene::AddLight(const Light& light)
+{
+	_lights.push_back(light);
+}
+
 void Scene::BuildRenderItems(GeometryLibrary& geoLib)
 {
 	_renderItems.clear();
@@ -15,14 +20,13 @@ void Scene::BuildRenderItems(GeometryLibrary& geoLib)
 		auto ri = std::make_unique<RenderItem>();
 
 		ri->_cbObjIndex = index++;
-		ri->_mesh = geoLib.GetMesh();
 		
-		const auto& submesh = geoLib.GetSubmesh(inst.meshName);
-		ri->_indexCount = submesh._indexCount;
-		ri->_startIndex = submesh._startIndexLocation;
-		ri->_baseVertex = submesh._baseVertexLocation;
+		const auto& submesh = geoLib.GetSubmeshID(inst.meshName);
+		const auto& material = geoLib.GetMaterialID(inst.matName);
+		ri->_submeshId = submesh;
+		ri->_materialId = material;
+
 		ri->_world = inst.transform;
-		ri->_material = geoLib.GetMaterial(inst.matName);
 
 		_renderItems.push_back(std::move(ri));
 	}
@@ -31,4 +35,9 @@ void Scene::BuildRenderItems(GeometryLibrary& geoLib)
 std::vector<std::unique_ptr<RenderItem>>& Scene::GetRenderItems() 
 {
 	return _renderItems;
+}
+
+std::vector<Light>& Scene::GetLights()
+{
+	return _lights;
 }

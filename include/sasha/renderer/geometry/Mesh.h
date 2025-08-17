@@ -2,6 +2,10 @@
 #include "../../utility/d3dUtil.h"
 #include "Material.h"
 
+using MeshID = uint16_t;
+using SubMeshID = uint16_t;
+using MaterialID = uint16_t;
+
 struct Vertex
 {
 	DirectX::XMFLOAT3 Pos;
@@ -16,11 +20,11 @@ struct ConstantBuffer
 struct Light
 {
 	DirectX::XMFLOAT3 Strength = { 0.5f, 0.5f, 0.5f };
-	float FalloffStart = 1.0f;                          // point/spot light only
-	DirectX::XMFLOAT3 Direction = { 0.0f, -1.0f, 0.0f };// directional/spot light only
-	float FalloffEnd = 10.0f;                           // point/spot light only
-	DirectX::XMFLOAT3 Position = { 0.0f, 0.0f, 0.0f };  // point/spot light only
-	float SpotPower = 64.0f;                            // spot light only
+	float FalloffStart = 1.0f;
+	DirectX::XMFLOAT3 Direction = { 0.0f, -1.0f, 0.0f };
+	float FalloffEnd = 10.0f;
+	DirectX::XMFLOAT3 Position = { 0.0f, 0.0f, 0.0f };
+	float SpotPower = 64.0f;
 };
 
 struct PassBuffer
@@ -46,7 +50,7 @@ struct PassBuffer
 
 struct ObjectInstance
 {
-	std::string meshName;         
+	std::string meshName;       
 	DirectX::XMFLOAT4X4 transform;
 	std::string matName;
 };
@@ -72,10 +76,10 @@ struct MeshGeometry
 		ThrowIfFailed(D3DCreateBlob(_indexByteSize, &_indexCPU));
 		CopyMemory(_indexCPU->GetBufferPointer(), indices.data(), _indexByteSize);
 
-		//_vertexGPU = d3dUtil::CreateBuffer(device, cmdList, _vertexUploader, vertices.data(), _vertexByteSize);
-		_vertexGPU = std::make_unique<d3dUtil::UploadBuffer<Vertex>>(device, static_cast<UINT>(vertices.size()), false);
+		/*_vertexGPU = std::make_unique<d3dUtil::UploadBuffer<Vertex>>(device, static_cast<UINT>(vertices.size()), false);
 		for (size_t i = 0; i < vertices.size(); i++)
-			_vertexGPU->CopyData(static_cast<UINT>(i), vertices[i]);
+			_vertexGPU->CopyData(static_cast<UINT>(i), vertices[i]);*/
+		_vertexGPU = d3dUtil::CreateBuffer(device, cmdList, _vertexUploader, vertices.data(), _vertexByteSize);
 		_indexGPU = d3dUtil::CreateBuffer(device, cmdList, _indexUploader, indices.data(), _indexByteSize);
 	}
 
@@ -84,8 +88,8 @@ struct MeshGeometry
 	Microsoft::WRL::ComPtr<ID3DBlob> _vertexCPU = nullptr;
 	Microsoft::WRL::ComPtr<ID3DBlob> _indexCPU = nullptr;
 
-	//Microsoft::WRL::ComPtr<ID3D12Resource> _vertexGPU = nullptr;
-	std::unique_ptr<d3dUtil::UploadBuffer<Vertex>> _vertexGPU;
+	//std::unique_ptr<d3dUtil::UploadBuffer<Vertex>> _vertexGPU;
+	Microsoft::WRL::ComPtr<ID3D12Resource> _vertexGPU = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Resource> _indexGPU = nullptr;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> _vertexUploader = nullptr;
@@ -96,12 +100,10 @@ struct MeshGeometry
 	DXGI_FORMAT _indexFormat = DXGI_FORMAT_R16_UINT;
 	UINT _indexByteSize = 0;
 
-	std::unordered_map<std::string, SubmeshGeometry> _subGeometry;
-
 	D3D12_VERTEX_BUFFER_VIEW VertexBufferView() const noexcept
 	{
 		D3D12_VERTEX_BUFFER_VIEW vbv;
-		vbv.BufferLocation = _vertexGPU->GetResource()->GetGPUVirtualAddress();
+		vbv.BufferLocation = _vertexGPU->GetGPUVirtualAddress();
 		vbv.StrideInBytes = _vertexStride;
 		vbv.SizeInBytes = _vertexByteSize;
 
@@ -130,14 +132,13 @@ struct RenderItem
 	DirectX::XMFLOAT4X4 _world = d3dUtil::Identity4x4();
 
 	UINT _cbObjIndex = -1;
-	MeshGeometry* _mesh = nullptr;
-	Material* _material = nullptr;
+
+	//MeshGeometry* _mesh = nullptr;
+	SubMeshID _submeshId;
+	MaterialID _materialId;
 
 	D3D12_PRIMITIVE_TOPOLOGY _primitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 
-	UINT _indexCount = 0u;
-	UINT _startIndex = 0u;
-	UINT _baseVertex = 0u;
 
 	UINT _hasMoved = true;
 

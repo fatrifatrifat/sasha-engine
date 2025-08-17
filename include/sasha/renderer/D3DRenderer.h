@@ -37,6 +37,7 @@ private:
 	void BuildInputLayout();
 	void BuildGeometry();
 	void BuildMaterial();
+	void BuildLights();
 	void BuildScene();
 	void BuildFrameResources();
 	void BuildCbvDescriptorHeap();
@@ -63,6 +64,8 @@ private:
 	int _appHeight;
 	HWND _wndHandle;
 	bool _isWireFrame = false;
+
+	HANDLE _eventHandle;
 
 	Keyboard* _kbd = nullptr;
 	Mouse* _mouse = nullptr;
@@ -108,9 +111,9 @@ private:
 	UINT _matCbvOffset = 0u;
 	std::unique_ptr<DescriptorHeap> _cbvHeap;
 
+	static constexpr float _sunSpeed = 2.5f;
 	float _lightTheta = 1.25f * XM_PI;
 	float _lightPhi = 0.1f;
-
 
 	std::array<ComPtr<ID3D12PipelineState>, 2> _pso;
 	ComPtr<ID3D12RootSignature> _rootSignature;

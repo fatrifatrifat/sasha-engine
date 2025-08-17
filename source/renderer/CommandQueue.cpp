@@ -13,6 +13,13 @@ CommandQueue::CommandQueue(ID3D12Device* device,
 	ThrowIfFailed(device->CreateCommandQueue(&cqDesc, IID_PPV_ARGS(&_cmdQueue)));
 
 	ThrowIfFailed(device->CreateFence(_currFence, fenceFlags, IID_PPV_ARGS(&_fence)));
+
+	_eventHandle = CreateEventEx(nullptr, nullptr, false, EVENT_ALL_ACCESS);
+}
+
+CommandQueue::~CommandQueue()
+{
+	CloseHandle(_eventHandle);
 }
 
 ID3D12CommandQueue* CommandQueue::Get() const noexcept
@@ -50,10 +57,7 @@ void CommandQueue::Flush() const
 
 	if (_fence->GetCompletedValue() < _currFence)
 	{
-		HANDLE eventHandle = CreateEventEx(nullptr, nullptr, false, EVENT_ALL_ACCESS);
-		assert(eventHandle != 0);
-		_fence->SetEventOnCompletion(_currFence, eventHandle);
-		WaitForSingleObject(eventHandle, INFINITE);
-		CloseHandle(eventHandle);
+		_fence->SetEventOnCompletion(_currFence, _eventHandle);
+		WaitForSingleObject(_eventHandle, INFINITE);
 	}
 }
