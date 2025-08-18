@@ -21,6 +21,7 @@
 #include <comdef.h>
 #include <cassert>
 #include <iostream>
+#include <DirectXTex.h>
 #include "d3dx12.h"
 #include "Timer.h"
 #include "d3dException.h"

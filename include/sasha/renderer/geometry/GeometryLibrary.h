@@ -5,22 +5,26 @@
 
 class GeometryLibrary
 {
-    friend class Scene;
 public:
     void AddGeometry(const std::string& name, GeometryGenerator::MeshData& mesh);
     void AddMaterial(const std::string& name, std::unique_ptr<Material>&& mat);
 
     void Upload(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList);
 
-    MeshGeometry* GetMesh();
+    [[nodiscard]] const MeshGeometry& GetMesh() const noexcept;
+    [[nodiscard]] MeshGeometry& GetMesh() noexcept;
 
     const SubmeshGeometry& GetSubmesh(const std::string& name) const;
     const SubmeshGeometry& GetSubmesh(SubMeshID id) const;
-    SubMeshID GetSubmeshID(const std::string& name) const;
 
-    Material* GetMaterial(const std::string& name) const;
-    Material* GetMaterial(MaterialID id) const;
+    const Material& GetMaterial(const std::string& name) const;
+    Material& GetMaterial(const std::string& name);
+    const Material& GetMaterial(MaterialID id) const;
+    Material& GetMaterial(MaterialID id);
+    
+    SubMeshID GetSubmeshID(const std::string& name) const;
     MaterialID GetMaterialID(const std::string& name) const;
+    
     size_t GetMaterialCount() const noexcept;
 
 private:

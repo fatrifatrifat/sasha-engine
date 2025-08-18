@@ -10,6 +10,7 @@ struct Vertex
 {
 	DirectX::XMFLOAT3 Pos;
 	DirectX::XMFLOAT3 Normal;
+	DirectX::XMFLOAT2 Tex;
 };
 
 struct ConstantBuffer
@@ -17,7 +18,14 @@ struct ConstantBuffer
 	DirectX::XMFLOAT4X4 world = d3dUtil::Identity4x4();
 };
 
-struct Light
+enum class LightType : uint32_t
+{
+	Directional = 0,
+	Point,
+	Spot,
+};
+
+struct alignas(16) Light
 {
 	DirectX::XMFLOAT3 Strength = { 0.5f, 0.5f, 0.5f };
 	float FalloffStart = 1.0f;
@@ -130,17 +138,14 @@ struct MeshGeometry
 struct RenderItem
 {
 	DirectX::XMFLOAT4X4 _world = d3dUtil::Identity4x4();
+	DirectX::XMFLOAT4X4 _texTrans = d3dUtil::Identity4x4();
 
 	UINT _cbObjIndex = -1;
 
-	//MeshGeometry* _mesh = nullptr;
 	SubMeshID _submeshId;
 	MaterialID _materialId;
 
 	D3D12_PRIMITIVE_TOPOLOGY _primitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-
-
-	UINT _hasMoved = true;
 
 	int _numDirtyFlags = 3;
 };

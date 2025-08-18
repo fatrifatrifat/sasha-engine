@@ -1,6 +1,9 @@
 ﻿#include "../../include/sasha/renderer/D3DRenderer.h"
 #include <filesystem>
 #include <thread>
+#include <numbers>
+#include <ranges>
+#include <cmath>
 
 D3DRenderer::D3DRenderer(HWND wh, int w, int h)
 	: _wndHandle(wh)
@@ -34,8 +37,8 @@ void D3DRenderer::d3dInit()
 	BuildLights();
 	BuildScene();
 	BuildFrameResources();
-	//BuildCbvDescriptorHeap();
-	//BuildConstantBuffers();
+	BuildCbvDescriptorHeap();
+	BuildConstantBuffers();
 	BuildPSO();
 
 	_cmdQueue->ExecuteCmdList(_cmdList->Get());
@@ -273,6 +276,7 @@ void D3DRenderer::BuildMaterial()
 	auto skullMat = std::make_unique<Material>();
 	skullMat->name = "skullMat";
 	skullMat->_matCBIndex = 0;
+	skullMat->_diffuseSrvHeapIndex = 0;
 	skullMat->_matProperties._diffuseAlbedo = { 0.12f, 0.10f, 0.05f, 1.0f };
 	skullMat->_matProperties._fresnelR0 = { 1.000f, 0.766f, 0.336f };
 	skullMat->_matProperties._roughness = 0.15f;
@@ -280,6 +284,7 @@ void D3DRenderer::BuildMaterial()
 	auto boxMat = std::make_unique<Material>();
 	boxMat->name = "boxMat";
 	boxMat->_matCBIndex = 1;
+	boxMat->_diffuseSrvHeapIndex = 1;
 	boxMat->_matProperties._diffuseAlbedo = { 0.8f, 0.2f, 0.2f, 1.0f };
 	boxMat->_matProperties._fresnelR0 = { 0.9f, 0.7f, 0.5f };
 	boxMat->_matProperties._roughness = 0.25f;
@@ -287,6 +292,7 @@ void D3DRenderer::BuildMaterial()
 	auto sphereMat = std::make_unique<Material>();
 	sphereMat->name = "sphereMat";
 	sphereMat->_matCBIndex = 2;
+	sphereMat->_diffuseSrvHeapIndex = 2;
 	sphereMat->_matProperties._diffuseAlbedo = { 0.2f, 0.5f, 0.8f, 1.0f };
 	sphereMat->_matProperties._fresnelR0 = { 0.6f, 0.6f, 0.9f };
 	sphereMat->_matProperties._roughness = 0.2f;
@@ -294,6 +300,7 @@ void D3DRenderer::BuildMaterial()
 	auto cylinderMat = std::make_unique<Material>();
 	cylinderMat->name = "cylinderMat";
 	cylinderMat->_matCBIndex = 3;
+	cylinderMat->_diffuseSrvHeapIndex = 3;
 	cylinderMat->_matProperties._diffuseAlbedo = { 0.5f, 0.5f, 0.5f, 1.0f };
 	cylinderMat->_matProperties._fresnelR0 = { 0.8f, 0.8f, 0.8f };
 	cylinderMat->_matProperties._roughness = 0.3f;
@@ -301,6 +308,7 @@ void D3DRenderer::BuildMaterial()
 	auto gridMat = std::make_unique<Material>();
 	gridMat->name = "gridMat";
 	gridMat->_matCBIndex = 4;
+	gridMat->_diffuseSrvHeapIndex = 4;
 	gridMat->_matProperties._diffuseAlbedo = { 0.1f, 0.1f, 0.1f, 1.0f };
 	gridMat->_matProperties._fresnelR0 = { 0.5f, 0.5f, 0.5f };
 	gridMat->_matProperties._roughness = 0.7f;
@@ -308,6 +316,7 @@ void D3DRenderer::BuildMaterial()
 	auto hillMat = std::make_unique<Material>();
 	hillMat->name = "hillMat";
 	hillMat->_matCBIndex = 5;
+	hillMat->_diffuseSrvHeapIndex = 5;
 	hillMat->_matProperties._diffuseAlbedo = { 0.45f, 0.33f, 0.18f, 1.0f };
 	hillMat->_matProperties._fresnelR0 = { 0.800f, 0.600f, 0.400f };
 	hillMat->_matProperties._roughness = 0.55f;
@@ -325,6 +334,7 @@ void D3DRenderer::BuildLights()
 	for (float theta = 0; theta < 2.f * d3dUtil::PI; theta += (d3dUtil::PI / 5.f))
 	{
 		Light light;
+
 		light.Strength = { 1.0f, 0.95f, 0.8f };
 		light.FalloffStart = 2.0f;
 		light.FalloffEnd = 10000.0f;
@@ -364,8 +374,8 @@ void D3DRenderer::BuildCbvDescriptorHeap()
 	// + 3 so each frame resource has access to it's global constant buffer that's non unique to each object
 	UINT descriptorHeapCount = static_cast<UINT>(((_scene.GetRenderItems().size() + 1 + _geoLib.GetMaterialCount()) * _frameResourceCount));
 	// Getting the index at which the global constant buffers are, right after all the unique constant buffers
-	_passCbvOffset = static_cast<UINT>((_frameResourceCount * _scene.GetRenderItems().size()));
-	_matCbvOffset = _passCbvOffset + _frameResourceCount;
+	_matCbvOffset = static_cast<UINT>(_frameResourceCount * _scene.GetRenderItems().size());
+	_passCbvOffset = static_cast<UINT>(_matCbvOffset + _frameResourceCount * _geoLib.GetMaterialCount());
 
 	_cbvHeap = std::make_unique<DescriptorHeap>(_device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, descriptorHeapCount, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 }
@@ -405,7 +415,7 @@ void D3DRenderer::BuildConstantBuffers()
 			D3D12_GPU_VIRTUAL_ADDRESS cbAddress = matCB->GetGPUVirtualAddress();
 			cbAddress += j * matSize;
 
-			int heapIndex = (int)(i * _geoLib.GetMaterialCount() + j + _matCbvOffset);
+			int heapIndex = (int)(_matCbvOffset + i * _geoLib.GetMaterialCount() + j);
 
 			D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc{};
 			cbvDesc.BufferLocation = cbAddress;
@@ -431,12 +441,9 @@ void D3DRenderer::BuildRootSignature()
 {
 	// This describes a slot for the constant buffers for the shaders
 	RootSignature rootBuilder;
-	//rootBuilder.AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1u, 0u);
-	//rootBuilder.AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1u, 1u);
-	//rootBuilder.AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1u, 2u);
-	rootBuilder.AddCBV(0u);
-	rootBuilder.AddCBV(1u);
-	rootBuilder.AddCBV(2u);
+	rootBuilder.AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1u, 0u);
+	rootBuilder.AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1u, 1u);
+	rootBuilder.AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1u, 2u);
 	_rootSignature = rootBuilder.Build(_device.Get());
 }
 
@@ -549,44 +556,36 @@ void D3DRenderer::DrawFrame()
 	auto dsv = GetDSView();
 	_cmdList->Get()->OMSetRenderTargets(1, &currBackBufferView, true, &dsv);
 
-	//ID3D12DescriptorHeap* descriptorHeaps[] = { _cbvHeap->Get() };
-	//_cmdList->Get()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+	ID3D12DescriptorHeap* descriptorHeaps[] = { _cbvHeap->Get() };
+	_cmdList->Get()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
 	_cmdList->Get()->SetGraphicsRootSignature(_rootSignature.Get());
 
-	//int passCbvIndex = _passCbvOffset + _frameResourceIndex;
-	//auto passCbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(_cbvHeap->GetGPUDescriptorHandleForHeapStart());
-	//passCbvHandle.Offset(passCbvIndex, _cbvDescriptorSize);
-	//_cmdList->Get()->SetGraphicsRootDescriptorTable(1, _cbvHeap->GetGPUStart(passCbvIndex));
-
-	_cmdList->Get()->SetGraphicsRootConstantBufferView(2, _currFrameResource->_pass->GetResource()->GetGPUVirtualAddress());
+	int passCbvIndex = _passCbvOffset + _frameResourceIndex;
+	_cmdList->Get()->SetGraphicsRootDescriptorTable(2, _cbvHeap->GetGPUStart(passCbvIndex));
 
 	for (const auto& ri : _scene.GetRenderItems())
 	{
-		auto vbv = _geoLib.GetMesh()->VertexBufferView();
-		auto ibv = _geoLib.GetMesh()->IndexBufferView();
+		const auto& vbv = _geoLib.GetMesh().VertexBufferView();
+		const auto& ibv = _geoLib.GetMesh().IndexBufferView();
+
+		const auto& mat = _geoLib.GetMaterial(ri->_materialId);
+		const auto& submesh = _geoLib.GetSubmesh(ri->_submeshId);
 
 		_cmdList->Get()->IASetVertexBuffers(0, 1, &vbv);
 		_cmdList->Get()->IASetIndexBuffer(&ibv);
 		_cmdList->Get()->IASetPrimitiveTopology(ri->_primitiveType);
 
-		//UINT cbvIndex = _frameResourceIndex * static_cast<UINT>(_scene.GetRenderItems().size() + ri->_cbObjIndex);
-		//auto cbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(_cbvHeap->GetGPUDescriptorHandleForHeapStart());
-		//cbvHandle.Offset(cbvIndex, _cbvDescriptorSize);
-		//UINT matIndex = _frameResourceIndex * static_cast<UINT>(_geoLib.GetMaterialCount() + ri->_material->_matCBIndex) + _matCbvOffset;
+		UINT cbvIndex = _frameResourceIndex * static_cast<UINT>(_scene.GetRenderItems().size()) + ri->_cbObjIndex;
+		UINT matIndex = _frameResourceIndex * static_cast<UINT>(_geoLib.GetMaterialCount()) + _matCbvOffset + mat._matCBIndex;
 
-		//_cmdList->Get()->SetGraphicsRootDescriptorTable(0, _cbvHeap->GetGPUStart(cbvIndex));
-		//_cmdList->Get()->SetGraphicsRootDescriptorTable(1, _cbvHeap->GetGPUStart(matIndex));
+		_cmdList->Get()->SetGraphicsRootDescriptorTable(0, _cbvHeap->GetGPUStart(cbvIndex));
+		_cmdList->Get()->SetGraphicsRootDescriptorTable(1, _cbvHeap->GetGPUStart(matIndex));
 		auto addressObjCB = _currFrameResource->_cb->GetResource()->GetGPUVirtualAddress();
 		addressObjCB += ri->_cbObjIndex * d3dUtil::CalcConstantBufferSize(sizeof(ConstantBuffer));
-		_cmdList->Get()->SetGraphicsRootConstantBufferView(0, addressObjCB);
-
-		const auto& mat = _geoLib.GetMaterial(ri->_materialId);
-		const auto& submesh = _geoLib.GetSubmesh(ri->_submeshId);
 
 		auto addressMat = _currFrameResource->_mat->GetResource()->GetGPUVirtualAddress();
-		addressMat += mat->_matCBIndex * d3dUtil::CalcConstantBufferSize(sizeof(MaterialConstant));
-		_cmdList->Get()->SetGraphicsRootConstantBufferView(1, addressMat);
+		addressMat += mat._matCBIndex * d3dUtil::CalcConstantBufferSize(sizeof(MaterialConstant));
 
 		_cmdList->Get()->DrawIndexedInstanced(submesh._indexCount, 1u, submesh._startIndexLocation, submesh._baseVertexLocation, 0u);
 	}
@@ -742,14 +741,14 @@ void D3DRenderer::UpdateMatCB(const Timer& t)
 	auto currMatCB = _currFrameResource->_mat.get();
 	for (auto& e : _scene.GetRenderItems())
 	{
-		const auto& mat = _geoLib.GetMaterial(e->_materialId);
-		XMMATRIX transform = XMLoadFloat4x4(&mat->_matProperties._transform);
+		auto& mat = _geoLib.GetMaterial(e->_materialId);
+		XMMATRIX transform = XMLoadFloat4x4(&mat._matProperties._transform);
 		MaterialConstant cb;
-		cb._diffuseAlbedo = mat->_matProperties._diffuseAlbedo;
-		cb._fresnelR0 = mat->_matProperties._fresnelR0;
-		cb._roughness = mat->_matProperties._roughness;
+		cb._diffuseAlbedo = mat._matProperties._diffuseAlbedo;
+		cb._fresnelR0 = mat._matProperties._fresnelR0;
+		cb._roughness = mat._matProperties._roughness;
 		XMStoreFloat4x4(&cb._transform, XMMatrixTranspose(transform));
 
-		currMatCB->CopyData(mat->_matCBIndex, cb);
+		currMatCB->CopyData(mat._matCBIndex, cb);
 	}
 }
