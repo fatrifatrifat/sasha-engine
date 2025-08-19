@@ -49,9 +49,6 @@ void RootSignature::AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE type, UINT nu
 	_descriptorRanges.push_back(std::move(range));
 }
 
-void RootSignature::AddRootDescriptor() noexcept
-{
-}
 
 void RootSignature::AddCBV(UINT shaderReg, UINT regSpace) noexcept
 {
