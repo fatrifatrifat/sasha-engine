@@ -37,8 +37,11 @@ void D3DRenderer::d3dInit()
 	BuildLights();
 	BuildScene();
 	BuildFrameResources();
-	BuildCbvDescriptorHeap();
-	BuildConstantBuffers();
+	if (_usingDescriptorTables)
+	{
+		BuildCbvDescriptorHeap();
+		BuildConstantBuffers();
+	}
 	BuildPSO();
 
 	_cmdQueue->ExecuteCmdList(_cmdList->Get());
@@ -441,9 +444,18 @@ void D3DRenderer::BuildRootSignature()
 {
 	// This describes a slot for the constant buffers for the shaders
 	RootSignature rootBuilder;
-	rootBuilder.AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1u, 0u);
-	rootBuilder.AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1u, 1u);
-	rootBuilder.AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1u, 2u);
+	if (_usingDescriptorTables)
+	{
+		rootBuilder.AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1u, 0u);
+		rootBuilder.AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1u, 1u);
+		rootBuilder.AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1u, 2u);
+	}
+	else
+	{
+		rootBuilder.AddCBV(0);
+		rootBuilder.AddCBV(1);
+		rootBuilder.AddCBV(2);
+	}
 	_rootSignature = rootBuilder.Build(_device.Get());
 }
 
@@ -556,13 +568,24 @@ void D3DRenderer::DrawFrame()
 	auto dsv = GetDSView();
 	_cmdList->Get()->OMSetRenderTargets(1, &currBackBufferView, true, &dsv);
 
-	ID3D12DescriptorHeap* descriptorHeaps[] = { _cbvHeap->Get() };
-	_cmdList->Get()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+	if (_usingDescriptorTables)
+	{
+		ID3D12DescriptorHeap* descriptorHeaps[] = { _cbvHeap->Get() };
+		_cmdList->Get()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+	}
 
 	_cmdList->Get()->SetGraphicsRootSignature(_rootSignature.Get());
 
-	int passCbvIndex = _passCbvOffset + _frameResourceIndex;
-	_cmdList->Get()->SetGraphicsRootDescriptorTable(2, _cbvHeap->GetGPUStart(passCbvIndex));
+	if (_usingDescriptorTables)
+	{
+		int passCbvIndex = _passCbvOffset + _frameResourceIndex;
+		_cmdList->Get()->SetGraphicsRootDescriptorTable(2, _cbvHeap->GetGPUStart(passCbvIndex));
+	}
+	else
+	{
+		auto passAddress = _currFrameResource->_pass->GetResource()->GetGPUVirtualAddress();
+		_cmdList->Get()->SetGraphicsRootConstantBufferView(2, passAddress);
+	}
 
 	for (const auto& ri : _scene.GetRenderItems())
 	{
@@ -576,16 +599,22 @@ void D3DRenderer::DrawFrame()
 		_cmdList->Get()->IASetIndexBuffer(&ibv);
 		_cmdList->Get()->IASetPrimitiveTopology(ri->_primitiveType);
 
-		UINT cbvIndex = _frameResourceIndex * static_cast<UINT>(_scene.GetRenderItems().size()) + ri->_cbObjIndex;
-		UINT matIndex = _frameResourceIndex * static_cast<UINT>(_geoLib.GetMaterialCount()) + _matCbvOffset + mat._matCBIndex;
+		if (_usingDescriptorTables)
+		{
+			UINT cbvIndex = _frameResourceIndex * static_cast<UINT>(_scene.GetRenderItems().size()) + ri->_cbObjIndex;
+			UINT matIndex = _frameResourceIndex * static_cast<UINT>(_geoLib.GetMaterialCount()) + _matCbvOffset + mat._matCBIndex;
 
-		_cmdList->Get()->SetGraphicsRootDescriptorTable(0, _cbvHeap->GetGPUStart(cbvIndex));
-		_cmdList->Get()->SetGraphicsRootDescriptorTable(1, _cbvHeap->GetGPUStart(matIndex));
-		auto addressObjCB = _currFrameResource->_cb->GetResource()->GetGPUVirtualAddress();
-		addressObjCB += ri->_cbObjIndex * d3dUtil::CalcConstantBufferSize(sizeof(ConstantBuffer));
+			_cmdList->Get()->SetGraphicsRootDescriptorTable(0, _cbvHeap->GetGPUStart(cbvIndex));
+			_cmdList->Get()->SetGraphicsRootDescriptorTable(1, _cbvHeap->GetGPUStart(matIndex));
+		}
+		else
+		{
+			auto cbvAddress = _currFrameResource->_cb->GetResource()->GetGPUVirtualAddress() + ri->_cbObjIndex * d3dUtil::CalcConstantBufferSize(sizeof(ConstantBuffer));
+			auto matAddress = _currFrameResource->_mat->GetResource()->GetGPUVirtualAddress() + mat._matCBIndex * d3dUtil::CalcConstantBufferSize(sizeof(MaterialConstant));
 
-		auto addressMat = _currFrameResource->_mat->GetResource()->GetGPUVirtualAddress();
-		addressMat += mat._matCBIndex * d3dUtil::CalcConstantBufferSize(sizeof(MaterialConstant));
+			_cmdList->Get()->SetGraphicsRootConstantBufferView(0, cbvAddress);
+			_cmdList->Get()->SetGraphicsRootConstantBufferView(1, matAddress);
+		}
 
 		_cmdList->Get()->DrawIndexedInstanced(submesh._indexCount, 1u, submesh._startIndexLocation, submesh._baseVertexLocation, 0u);
 	}

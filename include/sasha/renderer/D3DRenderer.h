@@ -117,4 +117,5 @@ private:
 
 	std::array<ComPtr<ID3D12PipelineState>, 2> _pso;
 	ComPtr<ID3D12RootSignature> _rootSignature;
+	bool _usingDescriptorTables = true;
 };
