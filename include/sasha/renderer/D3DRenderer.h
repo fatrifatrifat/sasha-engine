@@ -35,10 +35,14 @@ private:
 	void CreateDSV();
 
 	void BuildInputLayout();
+
 	void BuildGeometry();
 	void BuildMaterial();
 	void BuildLights();
+	void BuildTextures();
+	
 	void BuildScene();
+
 	void BuildFrameResources();
 	void BuildCbvDescriptorHeap();
 	void BuildConstantBuffers();
@@ -48,6 +52,8 @@ private:
 	ID3D12Resource* GetCurrBackBuffer();
 	D3D12_CPU_DESCRIPTOR_HANDLE GetCurrBackBufferView();
 	D3D12_CPU_DESCRIPTOR_HANDLE GetDSView();
+
+	std::vector<CD3DX12_STATIC_SAMPLER_DESC> GetStaticSampler();
 
 	void BeginFrame();
 	void DrawFrame();
@@ -111,11 +117,13 @@ private:
 	UINT _matCbvOffset = 0u;
 	std::unique_ptr<DescriptorHeap> _cbvHeap;
 
+	std::unique_ptr<DescriptorHeap> _srvHeap;
+
 	static constexpr float _sunSpeed = 2.5f;
 	float _lightTheta = 1.25f * XM_PI;
 	float _lightPhi = 0.1f;
 
 	std::array<ComPtr<ID3D12PipelineState>, 2> _pso;
 	ComPtr<ID3D12RootSignature> _rootSignature;
-	bool _usingDescriptorTables = true;
+	bool _usingDescriptorTables = false;
 };

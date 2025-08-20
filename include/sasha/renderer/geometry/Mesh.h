@@ -5,6 +5,7 @@
 using MeshID = uint16_t;
 using SubMeshID = uint16_t;
 using MaterialID = uint16_t;
+using TextureID = uint16_t;
 
 struct Vertex
 {
@@ -16,6 +17,7 @@ struct Vertex
 struct ConstantBuffer
 {
 	DirectX::XMFLOAT4X4 world = d3dUtil::Identity4x4();
+	DirectX::XMFLOAT4X4 texTrans = d3dUtil::Identity4x4();
 };
 
 enum class LightType : uint32_t

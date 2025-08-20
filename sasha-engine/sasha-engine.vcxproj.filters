@@ -198,4 +198,9 @@
       <Filter>shaders</Filter>
     </FxCompile>
   </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\assets\textures\WoodCrate01.dds">
+      <Filter>assets\textures</Filter>
+    </Image>
+  </ItemGroup>
 </Project>

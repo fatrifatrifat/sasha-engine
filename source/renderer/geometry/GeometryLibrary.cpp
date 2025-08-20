@@ -9,7 +9,7 @@ void GeometryLibrary::AddGeometry(const std::string& name, GeometryGenerator::Me
     sub._indexCount = static_cast<UINT>(mesh.Indices32.size());
 
     for (const auto& v : mesh.Vertices)
-        _vertices.push_back({ v.Position, v.Normal });
+        _vertices.push_back({ v.Position, v.Normal, v.TexC });
 
     auto& indices16 = mesh.GetIndices16();
     _indices.insert(_indices.end(), indices16.begin(), indices16.end());

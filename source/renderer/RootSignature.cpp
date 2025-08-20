@@ -1,22 +1,23 @@
 #include "../../include/sasha/renderer/RootSignature.h"
 
-Microsoft::WRL::ComPtr<ID3D12RootSignature> RootSignature::Build(ID3D12Device* device, D3D12_ROOT_SIGNATURE_FLAGS flags)
+Microsoft::WRL::ComPtr<ID3D12RootSignature> RootSignature::Build(
+	ID3D12Device* device,
+	std::vector<CD3DX12_STATIC_SAMPLER_DESC> staticSamplers,
+	D3D12_ROOT_SIGNATURE_FLAGS flags)
 {
 	// Descriptor for the root signature
-	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(static_cast<UINT>(_slotParameters.size()), _slotParameters.data(),
-		0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-
-	const CD3DX12_ROOT_SIGNATURE_DESC rootDesc(
+	const CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(
 		static_cast<UINT>(_slotParameters.size()),
 		_slotParameters.data(),
-		0u, nullptr,
+		static_cast<UINT>(staticSamplers.size()),
+		staticSamplers.data(),
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
 	);
 
 	Microsoft::WRL::ComPtr<ID3DBlob> serializedRootSig = nullptr;
 	Microsoft::WRL::ComPtr<ID3DBlob> errorBlob = nullptr;
 	HRESULT hr = D3D12SerializeRootSignature(
-		&rootDesc,
+		&rootSigDesc,
 		D3D_ROOT_SIGNATURE_VERSION_1,
 		serializedRootSig.GetAddressOf(),
 		errorBlob.GetAddressOf()

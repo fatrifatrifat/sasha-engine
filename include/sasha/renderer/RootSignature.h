@@ -4,7 +4,9 @@
 class RootSignature
 {
 public:
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> Build(ID3D12Device* device, D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> Build(ID3D12Device* device,
+		std::vector<CD3DX12_STATIC_SAMPLER_DESC> staticSamplers,
+		D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 	void AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE type, UINT numDesc, UINT shaderReg, UINT regSpace = 0u) noexcept;
 	void AddCBV(UINT shaderReg, UINT regSpace = 0u) noexcept;

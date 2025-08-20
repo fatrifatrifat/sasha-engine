@@ -7,6 +7,7 @@
 cbuffer cbPerObject : register(b0)
 {
     float4x4 gWorld;
+    float4x4 gTexTransform;
 };
 
 cbuffer cbMaterial : register(b1)
@@ -47,6 +48,7 @@ struct VertexIn
 {
     float3 PosL : POSITION;
     float3 Normal : NORMAL;
+    float2 TexC : TEXCOORD;
 };
 
 struct VertexOut
@@ -54,19 +56,28 @@ struct VertexOut
     float4 PosH : SV_POSITION;
     float3 PosW : POSITION;
     float3 Normal : NORMAL;
+    float2 TexC : TEXCOORD;
 };
 
 VertexOut main(VertexIn vin)
 {
     VertexOut vout;
 	
-	// Transform to homogeneous clip space.
+    // Transform to world space
     float4 posW = mul(float4(vin.PosL, 1.0f), gWorld);
     vout.PosW = posW.xyz;
     
+	// Transform to homogeneous clip space.
     vout.PosH = mul(posW, gViewProj);
+    
+    // Transform textures
+    // Separating in 2 parts :
+    //  - Separating by the property of the object
+    //  - Separating by the property of the material
+    float4 texC = mul(float4(vin.TexC, 0.f, 1.f), gTexTransform);
+    vout.TexC = mul(texC, gMatTransform).xy;
 	
-	// Just pass vertex color into the pixel shader.
+    // Transform normals of uniformaly scaled objects to world space
     vout.Normal = mul(vin.Normal, (float3x3)gWorld);
     
     return vout;

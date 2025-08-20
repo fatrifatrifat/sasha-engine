@@ -25,6 +25,7 @@
 #include "d3dx12.h"
 #include "Timer.h"
 #include "d3dException.h"
+#include "d3dTexture.h"
 
 #pragma comment(lib,"d3dcompiler.lib")
 #pragma comment(lib, "D3D12.lib")

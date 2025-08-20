@@ -4,6 +4,7 @@
 #include <numbers>
 #include <ranges>
 #include <cmath>
+#include <DirectXTex.h>
 
 D3DRenderer::D3DRenderer(HWND wh, int w, int h)
 	: _wndHandle(wh)
@@ -35,6 +36,7 @@ void D3DRenderer::d3dInit()
 	BuildGeometry();
 	BuildMaterial();
 	BuildLights();
+	BuildTextures();
 	BuildScene();
 	BuildFrameResources();
 	if (_usingDescriptorTables)
@@ -250,6 +252,7 @@ void D3DRenderer::BuildInputLayout()
 	{
 		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 		{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		{"TEXCOORD", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 	};
 }
 
@@ -286,8 +289,8 @@ void D3DRenderer::BuildMaterial()
 
 	auto boxMat = std::make_unique<Material>();
 	boxMat->name = "boxMat";
-	boxMat->_matCBIndex = 1;
-	boxMat->_diffuseSrvHeapIndex = 1;
+	boxMat->_matCBIndex = 0;
+	boxMat->_diffuseSrvHeapIndex = 0;
 	boxMat->_matProperties._diffuseAlbedo = { 0.8f, 0.2f, 0.2f, 1.0f };
 	boxMat->_matProperties._fresnelR0 = { 0.9f, 0.7f, 0.5f };
 	boxMat->_matProperties._roughness = 0.25f;
@@ -324,12 +327,12 @@ void D3DRenderer::BuildMaterial()
 	hillMat->_matProperties._fresnelR0 = { 0.800f, 0.600f, 0.400f };
 	hillMat->_matProperties._roughness = 0.55f;
 
-	_geoLib.AddMaterial(skullMat->name, std::move(skullMat));
+	//_geoLib.AddMaterial(skullMat->name, std::move(skullMat));
 	_geoLib.AddMaterial(boxMat->name, std::move(boxMat));
-	_geoLib.AddMaterial(sphereMat->name, std::move(sphereMat));
-	_geoLib.AddMaterial(cylinderMat->name, std::move(cylinderMat));
-	_geoLib.AddMaterial(gridMat->name, std::move(gridMat));
-	_geoLib.AddMaterial(hillMat->name, std::move(hillMat));
+	//_geoLib.AddMaterial(sphereMat->name, std::move(sphereMat));
+	//_geoLib.AddMaterial(cylinderMat->name, std::move(cylinderMat));
+	//_geoLib.AddMaterial(gridMat->name, std::move(gridMat));
+	//_geoLib.AddMaterial(hillMat->name, std::move(hillMat));
 }
 
 void D3DRenderer::BuildLights()
@@ -348,16 +351,37 @@ void D3DRenderer::BuildLights()
 	}
 }
 
+void D3DRenderer::BuildTextures()
+{
+	auto woodCrateTex = std::make_unique<Texture>();
+	std::filesystem::path texPath = std::filesystem::current_path() / ".." / "assets" / "textures" / "WoodCrate01.dds";
+	woodCrateTex->_name = "woodCrateTex";
+	woodCrateTex->_filename = texPath.wstring();
+	ThrowIfFailed(CreateDDSTextureFromFile12(_device.Get(), _cmdList->Get(), woodCrateTex->_filename.c_str(), woodCrateTex->_resource, woodCrateTex->_uploadBuffer));
+
+	_srvHeap = std::make_unique<DescriptorHeap>(_device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1u, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Format = woodCrateTex->_resource->GetDesc().Format;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.MipLevels = woodCrateTex->_resource->GetDesc().MipLevels;
+	srvDesc.Texture2D.ResourceMinLODClamp = 0.f;
+
+	_device->CreateShaderResourceView(woodCrateTex->_resource.Get(), &srvDesc, _srvHeap->GetCPUStart());
+}
+
 void D3DRenderer::BuildScene()
 {
-	_scene.AddInstance("grid", "hillMat");
-	for (float theta = 0, i = 0; theta < 2.f * d3dUtil::PI; theta += (d3dUtil::PI / 5.f), i++)
+	/*_scene.AddInstance("grid", "hillMat");
+	for (float theta = 0, i = 0; theta < 2.f * d3dUtil::PI; theta += (d3dUtil::PI / 25.f), i++)
 	{
 		_scene.AddInstance("cylinder", "cylinderMat", d3dUtil::GetTranslation(12.f * cosf(theta), 1.5f, 12.f * sinf(theta)));
 		_scene.AddInstance("sphere", "sphereMat", d3dUtil::GetTranslation(12.f * cosf(theta), 3.5f, 12.f * sinf(theta)));
-	}
-	_scene.AddInstance("box", "boxMat", d3dUtil::GetTranslation(0.f, 1.f, 0.f));
-	_scene.AddInstance("skull", "skullMat", d3dUtil::GetTranslation(0.f, 2.f, 0.f));
+	}*/
+	_scene.AddInstance("box", "boxMat");
+	//_scene.AddInstance("skull", "skullMat", d3dUtil::GetTranslation(0.f, 2.f, 0.f));
 
 	_scene.BuildRenderItems(_geoLib);
 }
@@ -452,11 +476,13 @@ void D3DRenderer::BuildRootSignature()
 	}
 	else
 	{
+		rootBuilder.AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, 0u);
 		rootBuilder.AddCBV(0);
 		rootBuilder.AddCBV(1);
 		rootBuilder.AddCBV(2);
 	}
-	_rootSignature = rootBuilder.Build(_device.Get());
+
+	_rootSignature = rootBuilder.Build(_device.Get(), GetStaticSampler());
 }
 
 void D3DRenderer::BuildPSO()
@@ -541,6 +567,63 @@ D3D12_CPU_DESCRIPTOR_HANDLE D3DRenderer::GetDSView()
 	return _dsvHeap->GetCPUStart();
 }
 
+std::vector<CD3DX12_STATIC_SAMPLER_DESC> D3DRenderer::GetStaticSampler()
+{
+	// Applications usually only need a handful of samplers.  So just define them all up front
+	// and keep them available as part of the root signature.  
+
+	const CD3DX12_STATIC_SAMPLER_DESC pointWrap(
+		0, // shaderRegister
+		D3D12_FILTER_MIN_MAG_MIP_POINT, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP); // addressW
+
+	const CD3DX12_STATIC_SAMPLER_DESC pointClamp(
+		1, // shaderRegister
+		D3D12_FILTER_MIN_MAG_MIP_POINT, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
+
+	const CD3DX12_STATIC_SAMPLER_DESC linearWrap(
+		2, // shaderRegister
+		D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP); // addressW
+
+	const CD3DX12_STATIC_SAMPLER_DESC linearClamp(
+		3, // shaderRegister
+		D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
+
+	const CD3DX12_STATIC_SAMPLER_DESC anisotropicWrap(
+		4, // shaderRegister
+		D3D12_FILTER_ANISOTROPIC, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressW
+		0.0f,                             // mipLODBias
+		8);                               // maxAnisotropy
+
+	const CD3DX12_STATIC_SAMPLER_DESC anisotropicClamp(
+		5, // shaderRegister
+		D3D12_FILTER_ANISOTROPIC, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressW
+		0.0f,                              // mipLODBias
+		8);                                // maxAnisotropy
+
+	return { 
+		pointWrap, pointClamp,
+		linearWrap, linearClamp, 
+		anisotropicWrap, anisotropicClamp };
+}
+
 void D3DRenderer::BeginFrame()
 {
 	auto& _currCmdAlloc = _currFrameResource->_cmdAlloc;
@@ -584,7 +667,7 @@ void D3DRenderer::DrawFrame()
 	else
 	{
 		auto passAddress = _currFrameResource->_pass->GetResource()->GetGPUVirtualAddress();
-		_cmdList->Get()->SetGraphicsRootConstantBufferView(2, passAddress);
+		_cmdList->Get()->SetGraphicsRootConstantBufferView(3, passAddress);
 	}
 
 	for (const auto& ri : _scene.GetRenderItems())
@@ -609,11 +692,13 @@ void D3DRenderer::DrawFrame()
 		}
 		else
 		{
+			_cmdList->Get()->SetGraphicsRootDescriptorTable(0, _srvHeap->GetGPUStart(mat._diffuseSrvHeapIndex));
+
 			auto cbvAddress = _currFrameResource->_cb->GetResource()->GetGPUVirtualAddress() + ri->_cbObjIndex * d3dUtil::CalcConstantBufferSize(sizeof(ConstantBuffer));
 			auto matAddress = _currFrameResource->_mat->GetResource()->GetGPUVirtualAddress() + mat._matCBIndex * d3dUtil::CalcConstantBufferSize(sizeof(MaterialConstant));
 
-			_cmdList->Get()->SetGraphicsRootConstantBufferView(0, cbvAddress);
-			_cmdList->Get()->SetGraphicsRootConstantBufferView(1, matAddress);
+			_cmdList->Get()->SetGraphicsRootConstantBufferView(1, cbvAddress);
+			_cmdList->Get()->SetGraphicsRootConstantBufferView(2, matAddress);
 		}
 
 		_cmdList->Get()->DrawIndexedInstanced(submesh._indexCount, 1u, submesh._startIndexLocation, submesh._baseVertexLocation, 0u);
