@@ -114,6 +114,7 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <Image Include="..\assets\textures\DogDuck.jpg" />
     <Image Include="..\assets\textures\WoodCrate01.dds" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

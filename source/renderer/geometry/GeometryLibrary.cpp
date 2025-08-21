@@ -21,7 +21,15 @@ void GeometryLibrary::AddGeometry(const std::string& name, GeometryGenerator::Me
 void GeometryLibrary::AddMaterial(const std::string& name, std::unique_ptr<Material>&& mat)
 {
     _nameToMaterial[name] = static_cast<MaterialID>(_materials.size());
+    mat->_matCBIndex = static_cast<UINT>(_materials.size());
+    mat->_diffuseSrvHeapIndex = static_cast<UINT>(_materials.size());
     _materials.push_back(std::move(mat));
+}
+
+void GeometryLibrary::AddTexture(const std::string& name, std::unique_ptr<Texture>&& tex)
+{
+    _nameToTexture[name] = static_cast<UINT>(_textures.size());
+    _textures.push_back(std::move(tex));
 }
 
 void GeometryLibrary::Upload(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList)
@@ -74,6 +82,29 @@ Material& GeometryLibrary::GetMaterial(MaterialID id)
 {
     assert(id < _materials.size() && _materials[id]);
     return *_materials.at(id);
+}
+
+const Texture& GeometryLibrary::GetTexture(const std::string& name) const
+{
+    return *_textures.at(static_cast<UINT>(_nameToTexture.at(name)));
+}
+
+Texture& GeometryLibrary::GetTexture(const std::string& name)
+{
+    return *_textures.at(static_cast<UINT>(_nameToTexture.at(name)));
+}
+
+const Texture& GeometryLibrary::GetTexture(TextureID id) const
+{
+    assert(id < _textures.size() && _textures[id]);
+    return *_textures.at(id);
+}
+
+Texture& GeometryLibrary::GetTexture(TextureID id)
+{
+    assert(id < _textures.size() && _textures[id]);
+    return *_textures.at(id);
+
 }
 
 MaterialID GeometryLibrary::GetMaterialID(const std::string& name) const

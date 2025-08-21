@@ -1,5 +1,7 @@
 #pragma once
 #include "../../utility/d3dUtil.h"
+#include "../../../Include/sasha/sasha.h"
+#include <ranges>
 
 struct Texture
 {

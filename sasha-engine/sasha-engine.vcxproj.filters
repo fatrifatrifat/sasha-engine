@@ -202,5 +202,8 @@
     <Image Include="..\assets\textures\WoodCrate01.dds">
       <Filter>assets\textures</Filter>
     </Image>
+    <Image Include="..\assets\textures\DogDuck.jpg">
+      <Filter>assets\textures</Filter>
+    </Image>
   </ItemGroup>
 </Project>
