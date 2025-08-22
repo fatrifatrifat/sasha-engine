@@ -33,6 +33,7 @@ public:
     MaterialID GetMaterialID(const std::string& name) const;
     
     size_t GetMaterialCount() const noexcept;
+    size_t GetTextureCount() const noexcept;
 
 private:
     std::vector<Vertex> _vertices;

@@ -314,12 +314,12 @@ void D3DRenderer::BuildMaterial()
 	hillMat->_matProperties._fresnelR0 = { 0.800f, 0.600f, 0.400f };
 	hillMat->_matProperties._roughness = 0.55f;
 
-	_geoLib.AddMaterial(skullMat->name, std::move(skullMat));
+	//_geoLib.AddMaterial(skullMat->name, std::move(skullMat));
 	_geoLib.AddMaterial(boxMat->name, std::move(boxMat));
-	_geoLib.AddMaterial(sphereMat->name, std::move(sphereMat));
-	_geoLib.AddMaterial(cylinderMat->name, std::move(cylinderMat));
-	_geoLib.AddMaterial(gridMat->name, std::move(gridMat));
 	_geoLib.AddMaterial(hillMat->name, std::move(hillMat));
+	_geoLib.AddMaterial(cylinderMat->name, std::move(cylinderMat));
+	_geoLib.AddMaterial(sphereMat->name, std::move(sphereMat));
+	//_geoLib.AddMaterial(gridMat->name, std::move(gridMat));
 }
 
 void D3DRenderer::BuildLights()
@@ -328,110 +328,60 @@ void D3DRenderer::BuildLights()
 	{
 		Light light;
 
-		light.Strength = { 1.0f, 0.95f, 0.8f };
-		light.FalloffStart = 2.0f;
-		light.FalloffEnd = 10000.0f;
+		light.Strength = { 1.0f, 0.85f, 0.6f };
+		light.FalloffStart = 1.0f;
+		light.FalloffEnd = 4.0f;
 		light.Position = { 12.f * cosf(theta), 5.f, 12.f * sinf(theta) };
-		light.Direction = { 0.0f, -1.f, 0.f };
-		light.SpotPower = 32.0f;
+
 		_scene.AddLight(light);
 	}
 }
 
 void D3DRenderer::BuildTextures()
 {
-	auto woodCrateTex = std::make_unique<Texture>();
-	std::filesystem::path texPath = std::filesystem::current_path() / ".." / "assets" / "textures" / "DogDuck.jpg";
-	woodCrateTex->_name = "woodCrateTex";
-	woodCrateTex->_filename = texPath.wstring();
+	std::filesystem::path texPath = std::filesystem::current_path() / ".." / "assets" / "textures";
+	auto box = std::make_unique<Texture>(_device.Get(), *_cmdList, "box", (texPath / "tile.dds").wstring());
+	auto grid = std::make_unique<Texture>(_device.Get(), *_cmdList, "grid", (texPath / "checkboard.dds").wstring());
+	auto cylinder = std::make_unique<Texture>(_device.Get(), *_cmdList, "cylinder", (texPath / "stone.dds").wstring());
+	auto sphere = std::make_unique<Texture>(_device.Get(), *_cmdList, "sphere", (texPath / "water1.dds").wstring());
 
-	ScratchImage image;
-	ThrowIfFailed(LoadFromWICFile(woodCrateTex->_filename.c_str(), WIC_FLAGS_NONE, nullptr, image));
-
-	ScratchImage mipChain;
-	ThrowIfFailed(GenerateMipMaps(*image.GetImages(), TEX_FILTER_BOX, 0, mipChain));
-
-	const auto& chainBase = *mipChain.GetImages();
-	D3D12_RESOURCE_DESC texDesc{};
-	texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	texDesc.Width = (UINT)chainBase.width;
-	texDesc.Height = (UINT)chainBase.height;
-	texDesc.DepthOrArraySize = 1;
-	texDesc.MipLevels = (UINT16)mipChain.GetImageCount();
-	texDesc.Format = chainBase.format;
-	texDesc.SampleDesc.Count = 1;
-	texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	texDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-	const CD3DX12_HEAP_PROPERTIES heapProp(D3D12_HEAP_TYPE_DEFAULT);
-	ThrowIfFailed(_device->CreateCommittedResource(
-		&heapProp,
-		D3D12_HEAP_FLAG_NONE,
-		&texDesc,
-		D3D12_RESOURCE_STATE_COPY_DEST,
-		nullptr,
-		IID_PPV_ARGS(&woodCrateTex->_resource)
-	));
-
-	auto subresourData = std::ranges::views::iota(0, (int)mipChain.GetImageCount()) |
-		std::ranges::views::transform([&](int i) {
-			const auto img = mipChain.GetImage(i, 0, 0);
-			return D3D12_SUBRESOURCE_DATA{
-				.pData = img->pixels,
-				.RowPitch = (LONG_PTR)img->rowPitch,
-				.SlicePitch = (LONG_PTR)img->slicePitch,
-			};
-		}) |
-		std::ranges::to<std::vector>();
-
-	const auto uploadBufferSize = GetRequiredIntermediateSize(
-		woodCrateTex->_resource.Get(), 0, (UINT)subresourData.size()
-	);
-	const auto resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize);
-	
-	const CD3DX12_HEAP_PROPERTIES heapPropUpload(D3D12_HEAP_TYPE_UPLOAD);
-	ThrowIfFailed(_device->CreateCommittedResource(
-		&heapPropUpload,
-		D3D12_HEAP_FLAG_NONE,
-		&resourceDesc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		IID_PPV_ARGS(&woodCrateTex->_uploadBuffer)
-	));
-
-	UpdateSubresources(
-		_cmdList->Get(),
-		woodCrateTex->_resource.Get(),
-		woodCrateTex->_uploadBuffer.Get(),
-		0, 0,
-		(UINT)subresourData.size(),
-		subresourData.data()
-	);
-
-	_cmdList->ChangeResourceState(woodCrateTex->_resource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-	_srvHeap = std::make_unique<DescriptorHeap>(_device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1u, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+	_srvHeap = std::make_unique<DescriptorHeap>(_device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4u, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-	srvDesc.Format = woodCrateTex->_resource->GetDesc().Format;
+	srvDesc.Format = box->_resource->GetDesc().Format;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Texture2D.MipLevels = woodCrateTex->_resource->GetDesc().MipLevels;
+	srvDesc.Texture2D.MipLevels = box->_resource->GetDesc().MipLevels;
+	_device->CreateShaderResourceView(box->_resource.Get(), &srvDesc, _srvHeap->GetCPUStart());
 
-	_device->CreateShaderResourceView(woodCrateTex->_resource.Get(), &srvDesc, _srvHeap->GetCPUStart());
+	srvDesc.Format = grid->_resource->GetDesc().Format;
+	srvDesc.Texture2D.MipLevels = grid->_resource->GetDesc().MipLevels;
+	_device->CreateShaderResourceView(grid->_resource.Get(), &srvDesc, _srvHeap->GetCPUStart(1u));
 
-	_geoLib.AddTexture(woodCrateTex->_name, std::move(woodCrateTex));
+	srvDesc.Format = cylinder->_resource->GetDesc().Format;
+	srvDesc.Texture2D.MipLevels = cylinder->_resource->GetDesc().MipLevels;
+	_device->CreateShaderResourceView(cylinder->_resource.Get(), &srvDesc, _srvHeap->GetCPUStart(2u));
+
+	srvDesc.Format = sphere->_resource->GetDesc().Format;
+	srvDesc.Texture2D.MipLevels = sphere->_resource->GetDesc().MipLevels;
+	_device->CreateShaderResourceView(sphere->_resource.Get(), &srvDesc, _srvHeap->GetCPUStart(3u));
+
+	_geoLib.AddTexture(box->_name, std::move(box));
+	_geoLib.AddTexture(grid->_name, std::move(grid));
+	_geoLib.AddTexture(cylinder->_name, std::move(cylinder));
+	_geoLib.AddTexture(sphere->_name, std::move(sphere));
 }
 
 void D3DRenderer::BuildScene()
 {
-	//_scene.AddInstance("grid", "hillMat");
+	_scene.AddInstance("grid", "hillMat");
 	for (float theta = 0, i = 0; theta < 2.f * d3dUtil::PI; theta += (d3dUtil::PI / 25.f), i++)
 	{
-		//_scene.AddInstance("cylinder", "cylinderMat", d3dUtil::GetTranslation(12.f * cosf(theta), 1.5f, 12.f * sinf(theta)));
-		//_scene.AddInstance("sphere", "sphereMat", d3dUtil::GetTranslation(12.f * cosf(theta), 3.5f, 12.f * sinf(theta)));
-		_scene.AddInstance("box", "boxMat", d3dUtil::GetTranslation(12.f * cosf(theta), 1.5f, 12.f * sinf(theta)));
+		_scene.AddInstance("cylinder", "cylinderMat", d3dUtil::GetTranslation(12.f * cosf(theta), 1.5f, 12.f * sinf(theta)));
+		_scene.AddInstance("sphere", "sphereMat", d3dUtil::GetTranslation(12.f * cosf(theta), 3.5f, 12.f * sinf(theta)));
+		//_scene.AddInstance("box", "boxMat", d3dUtil::GetTranslation(12.f * cosf(theta), 1.5f, 12.f * sinf(theta)));
 	}
+	_scene.AddInstance("box", "boxMat");
 	//_scene.AddInstance("skull", "skullMat", d3dUtil::GetTranslation(0.f, 2.f, 0.f));
 
 	_scene.BuildRenderItems(_geoLib);
@@ -720,11 +670,12 @@ void D3DRenderer::DrawFrame()
 		ID3D12DescriptorHeap* descriptorsHeap[] = { _srvHeap->Get() };
 		_cmdList->Get()->SetDescriptorHeaps(_countof(descriptorsHeap), descriptorsHeap);
 
-		_cmdList->Get()->SetGraphicsRootDescriptorTable(0, _srvHeap->GetGPUStart());
-
 		auto passAddress = _currFrameResource->_pass->GetResource()->GetGPUVirtualAddress();
 		_cmdList->Get()->SetGraphicsRootConstantBufferView(3, passAddress);
 	}
+
+	auto objCBSize = d3dUtil::CalcConstantBufferSize(sizeof(ConstantBuffer));
+	auto matCBSize = d3dUtil::CalcConstantBufferSize(sizeof(MaterialConstant));
 
 	for (const auto& ri : _scene.GetRenderItems())
 	{
@@ -748,9 +699,11 @@ void D3DRenderer::DrawFrame()
 		}
 		else
 		{
-			auto cbvAddress = _currFrameResource->_cb->GetResource()->GetGPUVirtualAddress() + ri->_cbObjIndex * d3dUtil::CalcConstantBufferSize(sizeof(ConstantBuffer));
-			auto matAddress = _currFrameResource->_mat->GetResource()->GetGPUVirtualAddress() + mat._matCBIndex * d3dUtil::CalcConstantBufferSize(sizeof(MaterialConstant));
+			auto cbvAddress = _currFrameResource->_cb->GetResource()->GetGPUVirtualAddress() + ri->_cbObjIndex * objCBSize;
+			auto matAddress = _currFrameResource->_mat->GetResource()->GetGPUVirtualAddress() + mat._matCBIndex * matCBSize;
+			auto texAddress = _srvHeap->GetGPUStart(mat._diffuseSrvHeapIndex);
 
+			_cmdList->Get()->SetGraphicsRootDescriptorTable(0, texAddress);
 			_cmdList->Get()->SetGraphicsRootConstantBufferView(1, cbvAddress);
 			_cmdList->Get()->SetGraphicsRootConstantBufferView(2, matAddress);
 		}
@@ -818,6 +771,8 @@ void D3DRenderer::UpdateObjCB(const Timer& t)
 		XMMATRIX world = XMLoadFloat4x4(&e->_world);
 		ConstantBuffer cb;
 		XMStoreFloat4x4(&cb.world, XMMatrixTranspose(world));
+		if(_geoLib.GetMaterial(e->_materialId).name == "sphereMat")
+			XMStoreFloat4x4(&cb.texTrans, XMMatrixTranspose(XMMatrixMultiply(XMMatrixIdentity(), XMMatrixRotationZ(t.TotalTime()))));
 		currObjCB->CopyData(e->_cbObjIndex, cb);
 
 		e->_numDirtyFlags--;

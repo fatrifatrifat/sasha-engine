@@ -116,3 +116,8 @@ size_t GeometryLibrary::GetMaterialCount() const noexcept
 {
     return _materials.size();
 }
+
+size_t GeometryLibrary::GetTextureCount() const noexcept
+{
+    return _textures.size();
+}

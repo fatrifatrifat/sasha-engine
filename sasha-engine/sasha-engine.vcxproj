@@ -32,7 +32,6 @@
     <ClCompile Include="..\source\renderer\geometry\GeometryLibrary.cpp" />
     <ClCompile Include="..\source\renderer\RootSignature.cpp" />
     <ClCompile Include="..\source\renderer\Scene.cpp" />
-    <ClCompile Include="..\source\utility\d3dTexture.cpp" />
     <ClCompile Include="..\source\utility\d3dUtil.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -54,7 +53,6 @@
     <ClInclude Include="..\include\sasha\sasha.h" />
     <ClInclude Include="..\include\sasha\utility\d3dException.h" />
     <ClInclude Include="..\include\sasha\utility\d3dIncludes.h" />
-    <ClInclude Include="..\include\sasha\utility\d3dTexture.h" />
     <ClInclude Include="..\include\sasha\utility\d3dUtil.h" />
     <ClInclude Include="..\include\sasha\utility\d3dx12.h" />
     <ClInclude Include="..\include\sasha\utility\Timer.h" />

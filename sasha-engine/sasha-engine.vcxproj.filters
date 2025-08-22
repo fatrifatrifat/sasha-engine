@@ -99,9 +99,6 @@
     <ClCompile Include="..\source\renderer\RootSignature.cpp">
       <Filter>source\renderer</Filter>
     </ClCompile>
-    <ClCompile Include="..\source\utility\d3dTexture.cpp">
-      <Filter>source\utility</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\sasha\core\App.h">
@@ -163,9 +160,6 @@
     </ClInclude>
     <ClInclude Include="..\include\sasha\renderer\geometry\Material.h">
       <Filter>include\sasha\renderer\geometry</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\sasha\utility\d3dTexture.h">
-      <Filter>include\sasha\utility</Filter>
     </ClInclude>
     <ClInclude Include="..\include\sasha\renderer\geometry\Texture.h">
       <Filter>include\sasha\renderer\geometry</Filter>
