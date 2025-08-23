@@ -3,7 +3,6 @@
 #include "../sasha.h"
 #include "Scene.h"
 #include "FrameResource.h"
-#include <functional>
 
 using namespace Microsoft::WRL;
 using namespace DirectX;
@@ -27,13 +26,6 @@ public:
 	void SetAppSize(int w, int h) noexcept;
 
 private:
-	void CreateDevice();
-	void CreateCmdObjs();
-	void CreateSwapChain();
-	void CreateDescriptorHeaps();
-	void CreateRTV();
-	void CreateDSV();
-
 	void BuildInputLayout();
 
 	void BuildGeometry();
@@ -49,12 +41,6 @@ private:
 	void BuildRootSignature();
 	void BuildPSO();
 	
-	ID3D12Resource* GetCurrBackBuffer();
-	D3D12_CPU_DESCRIPTOR_HANDLE GetCurrBackBufferView();
-	D3D12_CPU_DESCRIPTOR_HANDLE GetDSView();
-
-	std::vector<CD3DX12_STATIC_SAMPLER_DESC> GetStaticSampler();
-
 	void BeginFrame();
 	void DrawFrame();
 	void EndFrame();
@@ -79,23 +65,14 @@ private:
 	XMFLOAT4 _cameraPos = { 0.f, 5.f, -5.f, 1.f };
 	const float _cameraSpeed = 25.f;
 
-	ComPtr<ID3D12Device> _device;
-	ComPtr<IDXGIFactory4> _factory;
-	ComPtr<IDXGISwapChain> _swapChain;
+	std::unique_ptr<Device> _device;
+	std::unique_ptr<SwapChain> _swapChain;
 
 	std::unique_ptr<CommandQueue> _cmdQueue;
 	std::unique_ptr<CommandList> _cmdList;
 
 	std::unique_ptr<DescriptorHeap> _rtvHeap;
 	std::unique_ptr<DescriptorHeap> _dsvHeap;
-
-	static constexpr UINT bufferCount = 2u;
-	UINT _currBackBuffer = 0u;
-	ComPtr<ID3D12Resource> _swapChainBuffer[bufferCount];
-	ComPtr<ID3D12Resource> _depthStencilBuffer;
-
-	D3D12_VIEWPORT _vp{};
-	D3D12_RECT _scissor{};
 
 	ComPtr<ID3DBlob> _vertexShader;
 	ComPtr<ID3DBlob> _pixelShader;

@@ -99,6 +99,7 @@
     <ClCompile Include="..\source\renderer\RootSignature.cpp">
       <Filter>source\renderer</Filter>
     </ClCompile>
+    <ClCompile Include="..\include\sasha\renderer\geometry\Texture.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\sasha\core\App.h">

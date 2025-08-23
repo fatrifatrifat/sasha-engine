@@ -25,11 +25,14 @@
     <ClCompile Include="..\source\input\Mouse.cpp" />
     <ClCompile Include="..\source\renderer\CommandList.cpp" />
     <ClCompile Include="..\source\renderer\CommandQueue.cpp" />
+    <ClCompile Include="..\source\renderer\core\Device.cpp" />
+    <ClCompile Include="..\source\renderer\core\SwapChain.cpp" />
     <ClCompile Include="..\source\renderer\D3DRenderer.cpp" />
     <ClCompile Include="..\source\renderer\DescriptorHeap.cpp" />
     <ClCompile Include="..\source\renderer\FrameResource.cpp" />
     <ClCompile Include="..\source\renderer\geometry\GeometryGenerator.cpp" />
     <ClCompile Include="..\source\renderer\geometry\GeometryLibrary.cpp" />
+    <ClCompile Include="..\source\renderer\geometry\Texture.cpp" />
     <ClCompile Include="..\source\renderer\RootSignature.cpp" />
     <ClCompile Include="..\source\renderer\Scene.cpp" />
     <ClCompile Include="..\source\utility\d3dUtil.cpp" />
@@ -40,6 +43,8 @@
     <ClInclude Include="..\include\sasha\input\Mouse.h" />
     <ClInclude Include="..\include\sasha\renderer\CommandList.h" />
     <ClInclude Include="..\include\sasha\renderer\CommandQueue.h" />
+    <ClInclude Include="..\include\sasha\renderer\core\Device.h" />
+    <ClInclude Include="..\include\sasha\renderer\core\SwapChain.h" />
     <ClInclude Include="..\include\sasha\renderer\D3DRenderer.h" />
     <ClInclude Include="..\include\sasha\renderer\DescriptorHeap.h" />
     <ClInclude Include="..\include\sasha\renderer\FrameResource.h" />

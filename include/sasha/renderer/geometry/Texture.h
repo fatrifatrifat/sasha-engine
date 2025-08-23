@@ -75,9 +75,12 @@ struct Texture
 		cmdList.ChangeResourceState(_resource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
 
+	static std::vector<CD3DX12_STATIC_SAMPLER_DESC> GetStaticSampler();
+
 	std::string _name;
 	std::wstring _filename;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> _resource = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Resource> _uploadBuffer = nullptr;
 };
+

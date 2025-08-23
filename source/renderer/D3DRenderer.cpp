@@ -22,21 +22,37 @@ D3DRenderer::~D3DRenderer()
 
 void D3DRenderer::d3dInit()
 {
-	CreateDevice();
-	CreateCmdObjs();
-	CreateSwapChain();
-	CreateDescriptorHeaps();
+	_device = std::make_unique<Device>();
+
+	// Creating the command queue which will contain the lists of command that was sent to the GPU
+	// Creating a fence object so we can synchronize the CPU and GPU
+	_cmdQueue = std::make_unique<CommandQueue>(_device->Get());
+
+	// Creating the command list which will contain the list of commands that will the sent to the command queue
+	// Creating the command allocator which will let you allocate memory of command lists
+	_cmdList = std::make_unique<CommandList>(_device->Get());
+	_cmdList->Get()->Close();
+
+	_swapChain = std::make_unique<SwapChain>(_wndHandle, _device.get(), _cmdQueue.get(), _appHeight, _appWidth);
+
+	// Creating descriptor heaps for the rtv and dsv which will contain rtvs and dsv descriptor that will be bind to the GPU pipeline
+	// Getting the size of a render target view descriptor (rtv), depth stencil view (dsv) and, constant buffer view, shader resource view and UAV
+	_rtvHeap = std::make_unique<DescriptorHeap>(_device->Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2u);
+
+	_dsvHeap = std::make_unique<DescriptorHeap>(_device->Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 	OnResize();
 
 	_cmdList->Reset();
 
 	BuildRootSignature();
 	BuildInputLayout();
+
 	BuildGeometry();
 	BuildMaterial();
 	BuildLights();
 	BuildTextures();
 	BuildScene();
+
 	BuildFrameResources();
 	if (_usingDescriptorTables)
 	{
@@ -93,151 +109,6 @@ void D3DRenderer::SetAppSize(int w, int h) noexcept
 	_appWidth = w;	
 }
 
-void D3DRenderer::CreateDevice()
-{
-	// Enabling the debugging layer so we can more easily debug if something goes wrong
-	#if defined (DEBUG) || defined (_DEBUG)
-	{
-		ComPtr<ID3D12Debug> debugLayer;
-		ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugLayer)));
-		debugLayer->EnableDebugLayer();
-	}
-	#endif
-
-	// Creating the factory for DXGI objects like SwapChain
-	ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&_factory)));
-
-	// Creating the device, basically the interface that let's you create of interfaces specific to d3d
-	ThrowIfFailed(D3D12CreateDevice(
-		nullptr,
-		D3D_FEATURE_LEVEL_11_0,
-		IID_PPV_ARGS(&_device)
-	));
-
-	// Checking the MSAA4x quality level
-	D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS qualityLevels{};
-	qualityLevels.Flags = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
-	qualityLevels.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	qualityLevels.NumQualityLevels = 0;
-	qualityLevels.SampleCount = 4;
-	ThrowIfFailed(_device->CheckFeatureSupport(D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS,
-		&qualityLevels,
-		sizeof(qualityLevels)
-	));
-	assert(qualityLevels.NumQualityLevels > 0);
-}
-
-void D3DRenderer::CreateCmdObjs()
-{
-	// Creating the command queue which will contain the lists of command that was sent to the GPU
-	// Creating a fence object so we can synchronize the CPU and GPU
-	_cmdQueue = std::make_unique<CommandQueue>(_device.Get());
-
-	// Creating the command list which will contain the list of commands that will the sent to the command queue
-	// Creating the command allocator which will let you allocate memory of command lists
-	_cmdList = std::make_unique<CommandList>(_device.Get());
-	_cmdList->Get()->Close();
-
-}
-
-void D3DRenderer::CreateSwapChain()
-{
-	// Creating the SwapChain object to be able to access and swap between render targets that we will show as frames
-	DXGI_SWAP_CHAIN_DESC scDesc;
-	scDesc.BufferDesc.Height = _appHeight;
-	scDesc.BufferDesc.Width = _appWidth;
-	scDesc.BufferDesc.RefreshRate.Numerator = 60;
-	scDesc.BufferDesc.RefreshRate.Denominator = 1;
-	scDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	scDesc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
-	scDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
-
-	scDesc.SampleDesc.Count = 1;
-	scDesc.SampleDesc.Quality = 0;
-
-	scDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	scDesc.BufferCount = bufferCount;
-	scDesc.OutputWindow = _wndHandle;
-	scDesc.Windowed = true;
-	scDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	scDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-
-	ThrowIfFailed(_factory->CreateSwapChain(
-		_cmdQueue->Get(),
-		&scDesc,
-		_swapChain.GetAddressOf()
-	));
-}
-
-void D3DRenderer::CreateDescriptorHeaps()
-{
-	// Creating descriptor heaps for the rtv and dsv which will contain rtvs and dsv descriptor that will be bind to the GPU pipeline
-	// Getting the size of a render target view descriptor (rtv), depth stencil view (dsv) and, constant buffer view, shader resource view and UAV
-	_rtvHeap = std::make_unique<DescriptorHeap>(_device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2u);
-
-	_dsvHeap = std::make_unique<DescriptorHeap>(_device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-}
-
-void D3DRenderer::CreateRTV()
-{
-	// Creating a rtv with every buffer held by the SwapChain
-	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvBegHandle = _rtvHeap->GetCPUStart();
-	for (int i = 0; i < bufferCount; i++)
-	{
-		ThrowIfFailed(_swapChain->GetBuffer(i, IID_PPV_ARGS(&_swapChainBuffer[i])));
-		_device->CreateRenderTargetView(_swapChainBuffer[i].Get(), nullptr, rtvBegHandle);
-		rtvBegHandle.Offset(_rtvHeap->GetSize());
-	}
-}
-
-void D3DRenderer::CreateDSV()
-{
-	// Creating the depth stencil view for the depth stencil buffer
-	const CD3DX12_HEAP_PROPERTIES heapProperties(D3D12_HEAP_TYPE_DEFAULT);
-	const CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC
-		::Tex2D(
-			DXGI_FORMAT_D32_FLOAT,
-			_appWidth, _appHeight,
-			1, 0, 1, 0,
-			D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL
-		);
-
-	D3D12_CLEAR_VALUE clearVal{};
-	clearVal.DepthStencil = { 1.f, 0 };
-	clearVal.Format = DXGI_FORMAT_D32_FLOAT;
-
-	ThrowIfFailed(_device->CreateCommittedResource(
-		&heapProperties,
-		D3D12_HEAP_FLAG_NONE,
-		&resourceDesc,
-		D3D12_RESOURCE_STATE_COMMON,
-		&clearVal,
-		IID_PPV_ARGS(_depthStencilBuffer.GetAddressOf())
-	));
-
-	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
-	dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
-	dsvDesc.Texture2D.MipSlice = 0;
-	dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
-	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-	_device->CreateDepthStencilView(_depthStencilBuffer.Get(), &dsvDesc, GetDSView());
-
-	_cmdList->ChangeResourceState(_depthStencilBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-
-	// Initialize the viewport and scissors rectangle
-	_vp.MaxDepth = 1.f;
-	_vp.MinDepth = 0.f;
-	_vp.Height = static_cast<float>(_appHeight);
-	_vp.Width = static_cast<float>(_appWidth);
-	_vp.TopLeftX = 0.f;
-	_vp.TopLeftY = 0.f;
-
-	_scissor = { 0, 0, _appWidth, _appHeight };
-
-	_cmdQueue->ExecuteCmdList(_cmdList->Get());
-	_cmdQueue->Flush();
-}
-
 void D3DRenderer::BuildInputLayout()
 {
 	// Getting and compiling the shaders
@@ -260,7 +131,7 @@ void D3DRenderer::BuildGeometry()
 	// Concatenating every vertices in the same array as well as for the indices for more efficient draw calls with a technique called instancing
 	GeometryGenerator g;
 	auto geoSphere = g.CreateGeosphere(1.f, 3);
-	auto box = g.CreateBox(1.f, 1.f, 1.f, 0);
+	auto box = g.CreateBox(5.f, 2.f, 5.f, 0);
 	auto cylinder = g.CreateCylinder(0.5f, 0.3f, 3.f, 10, 10);
 	auto grid = g.CreateGrid(160.f, 160.f, 100, 100);
 	std::filesystem::path skullPath = std::filesystem::current_path() / ".." / "assets" / "models" / "skull.txt";
@@ -273,7 +144,7 @@ void D3DRenderer::BuildGeometry()
 	_geoLib.AddGeometry("skull", skull);
 
 	// Once all are added:
-	_geoLib.Upload(_device.Get(), _cmdList->Get());
+	_geoLib.Upload(_device->Get(), _cmdList->Get());
 }
 
 void D3DRenderer::BuildMaterial()
@@ -314,11 +185,18 @@ void D3DRenderer::BuildMaterial()
 	hillMat->_matProperties._fresnelR0 = { 0.800f, 0.600f, 0.400f };
 	hillMat->_matProperties._roughness = 0.55f;
 
+	auto lightSphereMat = std::make_unique<Material>();
+	lightSphereMat->name = "lightSphereMat";
+	hillMat->_matProperties._diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
+	hillMat->_matProperties._fresnelR0 = { 0.800f, 0.800f, 0.800f };
+	hillMat->_matProperties._roughness = 0.f;
+
 	//_geoLib.AddMaterial(skullMat->name, std::move(skullMat));
 	_geoLib.AddMaterial(boxMat->name, std::move(boxMat));
 	_geoLib.AddMaterial(hillMat->name, std::move(hillMat));
 	_geoLib.AddMaterial(cylinderMat->name, std::move(cylinderMat));
 	_geoLib.AddMaterial(sphereMat->name, std::move(sphereMat));
+	_geoLib.AddMaterial(lightSphereMat->name, std::move(lightSphereMat));
 	//_geoLib.AddMaterial(gridMat->name, std::move(gridMat));
 }
 
@@ -340,36 +218,42 @@ void D3DRenderer::BuildLights()
 void D3DRenderer::BuildTextures()
 {
 	std::filesystem::path texPath = std::filesystem::current_path() / ".." / "assets" / "textures";
-	auto box = std::make_unique<Texture>(_device.Get(), *_cmdList, "box", (texPath / "tile.dds").wstring());
-	auto grid = std::make_unique<Texture>(_device.Get(), *_cmdList, "grid", (texPath / "checkboard.dds").wstring());
-	auto cylinder = std::make_unique<Texture>(_device.Get(), *_cmdList, "cylinder", (texPath / "stone.dds").wstring());
-	auto sphere = std::make_unique<Texture>(_device.Get(), *_cmdList, "sphere", (texPath / "water1.dds").wstring());
+	auto box = std::make_unique<Texture>(_device->Get(), *_cmdList, "box", (texPath / "tile.dds").wstring());
+	auto grid = std::make_unique<Texture>(_device->Get(), *_cmdList, "grid", (texPath / "checkboard.dds").wstring());
+	auto cylinder = std::make_unique<Texture>(_device->Get(), *_cmdList, "cylinder", (texPath / "stone.dds").wstring());
+	auto sphere = std::make_unique<Texture>(_device->Get(), *_cmdList, "sphere", (texPath / "water1.dds").wstring());
+	auto lightSphere = std::make_unique<Texture>(_device->Get(), *_cmdList, "lightSphere", (texPath / "ice.dds").wstring());
 
-	_srvHeap = std::make_unique<DescriptorHeap>(_device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4u, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+	_srvHeap = std::make_unique<DescriptorHeap>(_device->Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 5u, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 	srvDesc.Format = box->_resource->GetDesc().Format;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.Texture2D.MipLevels = box->_resource->GetDesc().MipLevels;
-	_device->CreateShaderResourceView(box->_resource.Get(), &srvDesc, _srvHeap->GetCPUStart());
+	_device->Get()->CreateShaderResourceView(box->_resource.Get(), &srvDesc, _srvHeap->GetCPUStart());
 
 	srvDesc.Format = grid->_resource->GetDesc().Format;
 	srvDesc.Texture2D.MipLevels = grid->_resource->GetDesc().MipLevels;
-	_device->CreateShaderResourceView(grid->_resource.Get(), &srvDesc, _srvHeap->GetCPUStart(1u));
+	_device->Get()->CreateShaderResourceView(grid->_resource.Get(), &srvDesc, _srvHeap->GetCPUStart(1u));
 
 	srvDesc.Format = cylinder->_resource->GetDesc().Format;
 	srvDesc.Texture2D.MipLevels = cylinder->_resource->GetDesc().MipLevels;
-	_device->CreateShaderResourceView(cylinder->_resource.Get(), &srvDesc, _srvHeap->GetCPUStart(2u));
+	_device->Get()->CreateShaderResourceView(cylinder->_resource.Get(), &srvDesc, _srvHeap->GetCPUStart(2u));
 
 	srvDesc.Format = sphere->_resource->GetDesc().Format;
 	srvDesc.Texture2D.MipLevels = sphere->_resource->GetDesc().MipLevels;
-	_device->CreateShaderResourceView(sphere->_resource.Get(), &srvDesc, _srvHeap->GetCPUStart(3u));
+	_device->Get()->CreateShaderResourceView(sphere->_resource.Get(), &srvDesc, _srvHeap->GetCPUStart(3u));
+
+	srvDesc.Format = lightSphere->_resource->GetDesc().Format;
+	srvDesc.Texture2D.MipLevels = lightSphere->_resource->GetDesc().MipLevels;
+	_device->Get()->CreateShaderResourceView(lightSphere->_resource.Get(), &srvDesc, _srvHeap->GetCPUStart(4u));
 
 	_geoLib.AddTexture(box->_name, std::move(box));
 	_geoLib.AddTexture(grid->_name, std::move(grid));
 	_geoLib.AddTexture(cylinder->_name, std::move(cylinder));
 	_geoLib.AddTexture(sphere->_name, std::move(sphere));
+	_geoLib.AddTexture(lightSphere->_name, std::move(lightSphere));
 }
 
 void D3DRenderer::BuildScene()
@@ -379,10 +263,9 @@ void D3DRenderer::BuildScene()
 	{
 		_scene.AddInstance("cylinder", "cylinderMat", d3dUtil::GetTranslation(12.f * cosf(theta), 1.5f, 12.f * sinf(theta)));
 		_scene.AddInstance("sphere", "sphereMat", d3dUtil::GetTranslation(12.f * cosf(theta), 3.5f, 12.f * sinf(theta)));
-		//_scene.AddInstance("box", "boxMat", d3dUtil::GetTranslation(12.f * cosf(theta), 1.5f, 12.f * sinf(theta)));
 	}
-	_scene.AddInstance("box", "boxMat");
-	//_scene.AddInstance("skull", "skullMat", d3dUtil::GetTranslation(0.f, 2.f, 0.f));
+	_scene.AddInstance("box", "boxMat", d3dUtil::GetTranslation(0.f, 1.f, 0.f));
+	_scene.AddInstance("sphere", "lightSphereMat", d3dUtil::MatToFloat4x4(XMMatrixMultiply(XMMatrixScaling(2.f, 2.f, 2.f), XMMatrixTranslation(0.f, 3.f, 0.f))));
 
 	_scene.BuildRenderItems(_geoLib);
 }
@@ -391,7 +274,7 @@ void D3DRenderer::BuildFrameResources()
 {
 	// Build the Frame Resources
 	for (int i = 0; i < _frameResourceCount; i++)
-		_frameResources.push_back(std::make_unique<FrameResource>(_device.Get(), 1u, static_cast<UINT>(_scene.GetRenderItems().size()), static_cast<UINT>(_geoLib.GetMaterialCount())));
+		_frameResources.push_back(std::make_unique<FrameResource>(_device->Get(), 1u, static_cast<UINT>(_scene.GetRenderItems().size()), static_cast<UINT>(_geoLib.GetMaterialCount())));
 }
 
 void D3DRenderer::BuildCbvDescriptorHeap()
@@ -405,7 +288,7 @@ void D3DRenderer::BuildCbvDescriptorHeap()
 	_matCbvOffset = static_cast<UINT>(_frameResourceCount * _scene.GetRenderItems().size());
 	_passCbvOffset = static_cast<UINT>(_matCbvOffset + _frameResourceCount * _geoLib.GetMaterialCount());
 
-	_cbvHeap = std::make_unique<DescriptorHeap>(_device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, descriptorHeapCount, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+	_cbvHeap = std::make_unique<DescriptorHeap>(_device->Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, descriptorHeapCount, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 }
 
 void D3DRenderer::BuildConstantBuffers()
@@ -434,7 +317,7 @@ void D3DRenderer::BuildConstantBuffers()
 			cbvDesc.BufferLocation = cbAddress;
 			cbvDesc.SizeInBytes = cbSize;
 
-			_device->CreateConstantBufferView(&cbvDesc, _cbvHeap->GetCPUStart(heapIndex));
+			_device->Get()->CreateConstantBufferView(&cbvDesc, _cbvHeap->GetCPUStart(heapIndex));
 		}
 
 		auto matCB = _frameResources[i]->_mat->GetResource();
@@ -449,7 +332,7 @@ void D3DRenderer::BuildConstantBuffers()
 			cbvDesc.BufferLocation = cbAddress;
 			cbvDesc.SizeInBytes = matSize;
 
-			_device->CreateConstantBufferView(&cbvDesc, _cbvHeap->GetCPUStart(heapIndex));
+			_device->Get()->CreateConstantBufferView(&cbvDesc, _cbvHeap->GetCPUStart(heapIndex));
 		}
 		// Do something similar for the global constant buffers that are shared between objects in the same frame resource
 		auto passCB = _frameResources[i]->_pass->GetResource();
@@ -461,7 +344,7 @@ void D3DRenderer::BuildConstantBuffers()
 		cbvDesc.BufferLocation = cbAddress;
 		cbvDesc.SizeInBytes = passSize;
 
-		_device->CreateConstantBufferView(&cbvDesc, _cbvHeap->GetCPUStart(heapIndex));
+		_device->Get()->CreateConstantBufferView(&cbvDesc, _cbvHeap->GetCPUStart(heapIndex));
 	}
 }
 
@@ -483,7 +366,7 @@ void D3DRenderer::BuildRootSignature()
 		rootBuilder.AddCBV(2);
 	}
 
-	_rootSignature = rootBuilder.Build(_device.Get(), GetStaticSampler());
+	_rootSignature = rootBuilder.Build(_device->Get(), Texture::GetStaticSampler());
 }
 
 void D3DRenderer::BuildPSO()
@@ -516,11 +399,11 @@ void D3DRenderer::BuildPSO()
 	psoDesc.SampleDesc.Quality = 0;
 	psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 
-	ThrowIfFailed(_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&_pso[0])));
+	ThrowIfFailed(_device->Get()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&_pso[0])));
 
 	psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
 
-	ThrowIfFailed(_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&_pso[1])));
+	ThrowIfFailed(_device->Get()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&_pso[1])));
 }
 
 void D3DRenderer::OnResize()
@@ -530,99 +413,13 @@ void D3DRenderer::OnResize()
 	_cmdQueue->Flush();
 	_cmdList->Reset();
 
-	for (int i = 0; i < bufferCount; i++)
-		_swapChainBuffer[i].Reset();
-	_depthStencilBuffer.Reset();
+	_swapChain->OnResize(_device.get(), _cmdList.get(), *_rtvHeap.get(), *_dsvHeap.get());
 
-	ThrowIfFailed(_swapChain->ResizeBuffers(bufferCount,
-		_appWidth, _appHeight,
-		DXGI_FORMAT_R8G8B8A8_UNORM,
-		DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH
-	));
-
-	_currBackBuffer = 0u;
-
-	CreateRTV();
-	CreateDSV();
+	_cmdQueue->ExecuteCmdList(_cmdList->Get());
+	_cmdQueue->Flush();
 
 	XMMATRIX P = XMMatrixPerspectiveFovLH(0.25f * d3dUtil::PI, AspectRatio(), 1.0f, 1000.0f);
 	XMStoreFloat4x4(&_proj, P);
-}
-
-ID3D12Resource* D3DRenderer::GetCurrBackBuffer()
-{
-	return _swapChainBuffer[_currBackBuffer].Get();
-}
-
-D3D12_CPU_DESCRIPTOR_HANDLE D3DRenderer::GetCurrBackBufferView()
-{
-	return CD3DX12_CPU_DESCRIPTOR_HANDLE(
-		_rtvHeap->GetCPUStart(),
-		_currBackBuffer,
-		_rtvHeap->GetSize()
-	);
-}
-
-D3D12_CPU_DESCRIPTOR_HANDLE D3DRenderer::GetDSView()
-{
-	return _dsvHeap->GetCPUStart();
-}
-
-std::vector<CD3DX12_STATIC_SAMPLER_DESC> D3DRenderer::GetStaticSampler()
-{
-	// Applications usually only need a handful of samplers.  So just define them all up front
-	// and keep them available as part of the root signature.  
-
-	const CD3DX12_STATIC_SAMPLER_DESC pointWrap(
-		0, // shaderRegister
-		D3D12_FILTER_MIN_MAG_MIP_POINT, // filter
-		D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
-		D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
-		D3D12_TEXTURE_ADDRESS_MODE_WRAP); // addressW
-
-	const CD3DX12_STATIC_SAMPLER_DESC pointClamp(
-		1, // shaderRegister
-		D3D12_FILTER_MIN_MAG_MIP_POINT, // filter
-		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressU
-		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressV
-		D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
-
-	const CD3DX12_STATIC_SAMPLER_DESC linearWrap(
-		2, // shaderRegister
-		D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
-		D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
-		D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
-		D3D12_TEXTURE_ADDRESS_MODE_WRAP); // addressW
-
-	const CD3DX12_STATIC_SAMPLER_DESC linearClamp(
-		3, // shaderRegister
-		D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
-		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressU
-		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressV
-		D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
-
-	const CD3DX12_STATIC_SAMPLER_DESC anisotropicWrap(
-		4, // shaderRegister
-		D3D12_FILTER_ANISOTROPIC, // filter
-		D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
-		D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
-		D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressW
-		0.0f,                             // mipLODBias
-		8);                               // maxAnisotropy
-
-	const CD3DX12_STATIC_SAMPLER_DESC anisotropicClamp(
-		5, // shaderRegister
-		D3D12_FILTER_ANISOTROPIC, // filter
-		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressU
-		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressV
-		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressW
-		0.0f,                              // mipLODBias
-		8);                                // maxAnisotropy
-
-	return { 
-		pointWrap, pointClamp,
-		linearWrap, linearClamp, 
-		anisotropicWrap, anisotropicClamp };
 }
 
 void D3DRenderer::BeginFrame()
@@ -637,19 +434,19 @@ void D3DRenderer::BeginFrame()
 	else
 		_cmdList->Reset(_currCmdAlloc.Get(), _pso[1].Get());
 
-	_cmdList->ChangeResourceState(GetCurrBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	_cmdList->ChangeResourceState(_swapChain->GetCurrBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 }
 
 void D3DRenderer::DrawFrame()
 {
-	_cmdList->Get()->RSSetViewports(1, &_vp);
-	_cmdList->Get()->RSSetScissorRects(1, &_scissor);
+	_cmdList->Get()->RSSetViewports(1, _swapChain->GetViewport());
+	_cmdList->Get()->RSSetScissorRects(1, _swapChain->GetRect());
 
-	_cmdList->Get()->ClearRenderTargetView(GetCurrBackBufferView(), Colors::SteelBlue, 0, nullptr);
-	_cmdList->Get()->ClearDepthStencilView(GetDSView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
+	_cmdList->Get()->ClearRenderTargetView(_swapChain->GetCurrBackBufferView(*_rtvHeap.get()), Colors::SteelBlue, 0, nullptr);
+	_cmdList->Get()->ClearDepthStencilView(_swapChain->GetDSView(*_dsvHeap.get()), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
 
-	auto currBackBufferView = GetCurrBackBufferView();
-	auto dsv = GetDSView();
+	auto currBackBufferView = _swapChain->GetCurrBackBufferView(*_rtvHeap.get());
+	auto dsv = _swapChain->GetDSView(*_dsvHeap.get());
 	_cmdList->Get()->OMSetRenderTargets(1, &currBackBufferView, true, &dsv);
 
 	if (_usingDescriptorTables)
@@ -714,11 +511,10 @@ void D3DRenderer::DrawFrame()
 
 void D3DRenderer::EndFrame()
 {
-	_cmdList->ChangeResourceState(GetCurrBackBuffer(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+	_cmdList->ChangeResourceState(_swapChain->GetCurrBackBuffer(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
 	_cmdQueue->ExecuteCmdList(_cmdList->Get());
-	_swapChain->Present(0, 0);
-	_currBackBuffer = (_currBackBuffer + 1) % bufferCount;
+	_swapChain->Present();
 
 	_currFrameResource->_fence = ++_cmdQueue->GetCurrFence();
 
@@ -771,7 +567,8 @@ void D3DRenderer::UpdateObjCB(const Timer& t)
 		XMMATRIX world = XMLoadFloat4x4(&e->_world);
 		ConstantBuffer cb;
 		XMStoreFloat4x4(&cb.world, XMMatrixTranspose(world));
-		if(_geoLib.GetMaterial(e->_materialId).name == "sphereMat")
+		auto name = _geoLib.GetMaterial(e->_materialId).name;
+		if(name == "sphereMat" || name == "lightSphereMat")
 			XMStoreFloat4x4(&cb.texTrans, XMMatrixTranspose(XMMatrixMultiply(XMMatrixIdentity(), XMMatrixRotationZ(t.TotalTime()))));
 		currObjCB->CopyData(e->_cbObjIndex, cb);
 
@@ -850,7 +647,7 @@ void D3DRenderer::UpdatePassCB(const Timer& t)
 		1.f * sinf(_lightPhi) * sinf(_lightTheta),
 		1.0f);
 	XMStoreFloat3(&_mainPassCB.Lights[i].Direction, lightDir);
-	_mainPassCB.Lights[i].Strength = { 1.0f, 0.4f, 0.3f };
+	_mainPassCB.Lights[i].Strength = { .3f, .4f, 1.f };
 	_mainPassCB.Lights[i].FalloffStart = 2.0f;
 	_mainPassCB.Lights[i].FalloffEnd = 1000.0f;
 	_mainPassCB.Lights[i].Position = { 0.f, 10.f, 0.f };
