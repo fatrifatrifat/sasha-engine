@@ -1,7 +1,6 @@
 #include "../../../include/sasha/input/Keyboard.h"
 #include "../../../include/sasha/input/Mouse.h"
 #include "../sasha.h"
-#include "Scene.h"
 #include "FrameResource.h"
 
 using namespace Microsoft::WRL;
@@ -59,11 +58,9 @@ private:
 
 	HANDLE _eventHandle;
 
+	Camera _camera;
 	Keyboard* _kbd = nullptr;
 	Mouse* _mouse = nullptr;
-
-	XMFLOAT4 _cameraPos = { 0.f, 5.f, -5.f, 1.f };
-	const float _cameraSpeed = 25.f;
 
 	std::unique_ptr<Device> _device;
 	std::unique_ptr<SwapChain> _swapChain;
@@ -77,9 +74,6 @@ private:
 	ComPtr<ID3DBlob> _vertexShader;
 	ComPtr<ID3DBlob> _pixelShader;
 	std::vector<D3D12_INPUT_ELEMENT_DESC> _inputLayoutDesc{};
-
-	XMFLOAT4X4 _view = d3dUtil::Identity4x4();
-	XMFLOAT4X4 _proj = d3dUtil::Identity4x4();
 
 	GeometryLibrary _geoLib;
 	Scene _scene;

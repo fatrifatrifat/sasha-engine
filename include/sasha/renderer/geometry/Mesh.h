@@ -77,7 +77,7 @@ struct MeshGeometry
 	template <typename VertexContainer, typename IndexContainer>
 	MeshGeometry(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, const VertexContainer& vertices, const IndexContainer& indices)
 		: _vertexStride(sizeof(Vertex))
-		, _vertexByteSize(static_cast<UINT>(vertices.size() * _vertexStride))
+		, _vertexByteSize(static_cast<UINT>(vertices.size()* _vertexStride))
 		, _indexByteSize(static_cast<UINT>(indices.size() * sizeof(std::uint16_t)))
 	{
 		ThrowIfFailed(D3DCreateBlob(_vertexByteSize, &_vertexCPU));
@@ -135,19 +135,4 @@ struct MeshGeometry
 		_vertexUploader = nullptr;
 		_indexUploader = nullptr;
 	}
-};
-
-struct RenderItem
-{
-	DirectX::XMFLOAT4X4 _world = d3dUtil::Identity4x4();
-	DirectX::XMFLOAT4X4 _texTrans = d3dUtil::Identity4x4();
-
-	UINT _cbObjIndex = -1;
-
-	SubMeshID _submeshId;
-	MaterialID _materialId;
-
-	D3D12_PRIMITIVE_TOPOLOGY _primitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-
-	int _numDirtyFlags = 3;
 };

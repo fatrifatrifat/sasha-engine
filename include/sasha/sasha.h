@@ -2,6 +2,9 @@
 #include "renderer/core/Device.h"
 #include "renderer/core/SwapChain.h"
 
+#include "renderer/scene/Camera.h"
+#include "renderer/scene/Scene.h"
+
 #include "renderer/CommandQueue.h"
 #include "renderer/CommandList.h"
 #include "renderer/DescriptorHeap.h"

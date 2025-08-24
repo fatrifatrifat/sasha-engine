@@ -1,4 +1,4 @@
-#include "../../include/sasha/renderer/Scene.h"
+#include "../../../include/sasha/renderer/scene/Scene.h"
 
 void Scene::AddInstance(const std::string& meshName, const std::string& matName, const DirectX::XMFLOAT4X4& transform)
 {

@@ -1,6 +1,6 @@
 #pragma once
-#include "geometry/Mesh.h"
-#include "geometry/GeometryLibrary.h"
+#include "RenderItem.h"
+#include "../geometry/GeometryLibrary.h"
 
 class Scene
 {

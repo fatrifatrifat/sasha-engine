@@ -137,6 +137,17 @@ LRESULT App::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		_mouse.OnButtonUp(VK_LBUTTON);
 		break;
 
+	case WM_RBUTTONDOWN:
+		_mouse.OnButtonDown(VK_RBUTTON);
+		SetCapture(hWnd);
+		ShowCursor(FALSE);
+		break;
+	case WM_RBUTTONUP:
+		_mouse.OnButtonUp(VK_RBUTTON);
+		ReleaseCapture();
+		ShowCursor(TRUE);
+		break;
+
 	case WM_MOUSEWHEEL:
 		_mouse.OnWheelDelta(GET_WHEEL_DELTA_WPARAM(wParam));
 		break;

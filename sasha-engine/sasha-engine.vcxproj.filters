@@ -55,6 +55,18 @@
     <Filter Include="include\sasha\core">
       <UniqueIdentifier>{86efdbce-a728-450b-a000-9cd2a24b298b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="source\renderer\core">
+      <UniqueIdentifier>{3fce8763-f3a0-47c7-95f3-c3c3c7bf85a7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\renderer\scene">
+      <UniqueIdentifier>{81b4c76f-67c7-42fd-b4d9-7bc569c39079}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\sasha\renderer\core">
+      <UniqueIdentifier>{a994608c-256a-4b71-ac63-bb13717dc225}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\sasha\renderer\scene">
+      <UniqueIdentifier>{fb561ef4-a04c-47a2-8bd3-5f80f8227fce}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\app\SashaMain.cpp">
@@ -70,9 +82,6 @@
       <Filter>source\renderer</Filter>
     </ClCompile>
     <ClCompile Include="..\source\renderer\FrameResource.cpp">
-      <Filter>source\renderer</Filter>
-    </ClCompile>
-    <ClCompile Include="..\source\renderer\Scene.cpp">
       <Filter>source\renderer</Filter>
     </ClCompile>
     <ClCompile Include="..\source\renderer\geometry\GeometryGenerator.cpp">
@@ -99,7 +108,21 @@
     <ClCompile Include="..\source\renderer\RootSignature.cpp">
       <Filter>source\renderer</Filter>
     </ClCompile>
-    <ClCompile Include="..\include\sasha\renderer\geometry\Texture.cpp" />
+    <ClCompile Include="..\source\renderer\core\Device.cpp">
+      <Filter>source\renderer\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\renderer\core\SwapChain.cpp">
+      <Filter>source\renderer\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\renderer\scene\Camera.cpp">
+      <Filter>source\renderer\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\renderer\scene\Scene.cpp">
+      <Filter>source\renderer\scene</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\renderer\geometry\Texture.cpp">
+      <Filter>source\renderer\geometry</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\sasha\core\App.h">
@@ -115,9 +138,6 @@
       <Filter>include\sasha\renderer</Filter>
     </ClInclude>
     <ClInclude Include="..\include\sasha\renderer\FrameResource.h">
-      <Filter>include\sasha\renderer</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\sasha\renderer\Scene.h">
       <Filter>include\sasha\renderer</Filter>
     </ClInclude>
     <ClInclude Include="..\include\sasha\renderer\geometry\GeometryGenerator.h">
@@ -164,6 +184,21 @@
     </ClInclude>
     <ClInclude Include="..\include\sasha\renderer\geometry\Texture.h">
       <Filter>include\sasha\renderer\geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\sasha\renderer\core\Device.h">
+      <Filter>include\sasha\renderer\core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\sasha\renderer\core\SwapChain.h">
+      <Filter>include\sasha\renderer\core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\sasha\renderer\scene\Camera.h">
+      <Filter>include\sasha\renderer\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\sasha\renderer\scene\RenderItem.h">
+      <Filter>include\sasha\renderer\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\sasha\renderer\scene\Scene.h">
+      <Filter>include\sasha\renderer\scene</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

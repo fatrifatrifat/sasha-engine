@@ -34,7 +34,8 @@
     <ClCompile Include="..\source\renderer\geometry\GeometryLibrary.cpp" />
     <ClCompile Include="..\source\renderer\geometry\Texture.cpp" />
     <ClCompile Include="..\source\renderer\RootSignature.cpp" />
-    <ClCompile Include="..\source\renderer\Scene.cpp" />
+    <ClCompile Include="..\source\renderer\scene\Camera.cpp" />
+    <ClCompile Include="..\source\renderer\scene\Scene.cpp" />
     <ClCompile Include="..\source\utility\d3dUtil.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -54,7 +55,9 @@
     <ClInclude Include="..\include\sasha\renderer\geometry\Mesh.h" />
     <ClInclude Include="..\include\sasha\renderer\geometry\Texture.h" />
     <ClInclude Include="..\include\sasha\renderer\RootSignature.h" />
-    <ClInclude Include="..\include\sasha\renderer\Scene.h" />
+    <ClInclude Include="..\include\sasha\renderer\scene\Camera.h" />
+    <ClInclude Include="..\include\sasha\renderer\scene\RenderItem.h" />
+    <ClInclude Include="..\include\sasha\renderer\scene\Scene.h" />
     <ClInclude Include="..\include\sasha\sasha.h" />
     <ClInclude Include="..\include\sasha\utility\d3dException.h" />
     <ClInclude Include="..\include\sasha\utility\d3dIncludes.h" />

@@ -60,6 +60,11 @@ short Mouse::GetWheelDelta() const
     return _wheelDelta;
 }
 
+bool Mouse::OnRButtonDown() const
+{
+    return _buttonStates[1];
+}
+
 void Mouse::EndFrame()
 {
     _wheelDelta = 0;

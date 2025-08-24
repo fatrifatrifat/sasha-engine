@@ -13,6 +13,8 @@ public:
     int GetDeltaY() const;
     short GetWheelDelta() const;
 
+    bool OnRButtonDown() const;
+
     void EndFrame();
 
 private:

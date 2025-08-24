@@ -9,6 +9,7 @@ D3DRenderer::D3DRenderer(HWND wh, int w, int h)
 	: _wndHandle(wh)
 	, _appWidth(w)
 	, _appHeight(h)
+	, _camera(AspectRatio())
 {
 	_eventHandle = CreateEventEx(nullptr, nullptr, false, EVENT_ALL_ACCESS);
 }
@@ -414,12 +415,10 @@ void D3DRenderer::OnResize()
 	_cmdList->Reset();
 
 	_swapChain->OnResize(_device.get(), _cmdList.get(), *_rtvHeap.get(), *_dsvHeap.get());
+	_camera.OnResize(_appWidth, _appHeight);
 
 	_cmdQueue->ExecuteCmdList(_cmdList->Get());
 	_cmdQueue->Flush();
-
-	XMMATRIX P = XMMatrixPerspectiveFovLH(0.25f * d3dUtil::PI, AspectRatio(), 1.0f, 1000.0f);
-	XMStoreFloat4x4(&_proj, P);
 }
 
 void D3DRenderer::BeginFrame()
@@ -523,34 +522,38 @@ void D3DRenderer::EndFrame()
 
 void D3DRenderer::UpdateCamera(const Timer& t)
 {
+	const float dt = t.DeltaTime();
 
-	// Camera Control
+	// Camera Movement
 	if (_kbd->IsKeyPressed('W'))
-		_cameraPos.z += _cameraSpeed * t.DeltaTime();
+		_camera.Walk(dt);
 	else if (_kbd->IsKeyPressed('S'))
-		_cameraPos.z -= _cameraSpeed * t.DeltaTime();
-	else if (_kbd->IsKeyPressed('D'))
-		_cameraPos.x += _cameraSpeed * t.DeltaTime();
+		_camera.Walk(-dt);
+	if (_kbd->IsKeyPressed('D'))
+		_camera.Strafe(dt);
 	else if (_kbd->IsKeyPressed('A'))
-		_cameraPos.x -= _cameraSpeed * t.DeltaTime();
-	else if (_kbd->IsKeyPressed(VK_SPACE))
-		_cameraPos.y += _cameraSpeed * t.DeltaTime();
+		_camera.Strafe(-dt);
+	if (_kbd->IsKeyPressed(VK_SPACE))
+		_camera.Rise(dt);
 	else if (_kbd->IsKeyPressed(VK_CONTROL))
-		_cameraPos.y -= _cameraSpeed * t.DeltaTime();
+		_camera.Rise(-dt);
+
+	if (_mouse->OnRButtonDown())
+		_camera.AddYawPitch(_mouse->GetDeltaX(), _mouse->GetDeltaY());
 
 	// WireFrame Control
 	else if (_kbd->IsKeyPressed(VK_F2) && _kbd->WasKeyPressedThisFrame(VK_F2))
 		_isWireFrame = !_isWireFrame;
 
 	// Light Controll
-	else if (_kbd->IsKeyPressed(VK_UP))
-		_lightPhi -= _sunSpeed * t.DeltaTime();
+	if (_kbd->IsKeyPressed(VK_UP))
+		_lightPhi -= _sunSpeed * dt;
 	else if (_kbd->IsKeyPressed(VK_DOWN))
-		_lightPhi += _sunSpeed * t.DeltaTime();
-	else if (_kbd->IsKeyPressed(VK_LEFT))
-		_lightTheta -= _sunSpeed * t.DeltaTime();
+		_lightPhi += _sunSpeed * dt;
+	if (_kbd->IsKeyPressed(VK_LEFT))
+		_lightTheta -= _sunSpeed * dt;
 	else if (_kbd->IsKeyPressed(VK_RIGHT))
-		_lightTheta += _sunSpeed * t.DeltaTime();
+		_lightTheta += _sunSpeed * dt;
 
 	_lightPhi = std::clamp(_lightPhi, 0.1f, XM_PIDIV2);
 }
@@ -571,29 +574,22 @@ void D3DRenderer::UpdateObjCB(const Timer& t)
 		if(name == "sphereMat" || name == "lightSphereMat")
 			XMStoreFloat4x4(&cb.texTrans, XMMatrixTranspose(XMMatrixMultiply(XMMatrixIdentity(), XMMatrixRotationZ(t.TotalTime()))));
 		currObjCB->CopyData(e->_cbObjIndex, cb);
-
-		e->_numDirtyFlags--;
 	}
 }
 
 void D3DRenderer::UpdatePassCB(const Timer& t)
 {
-	XMVECTOR pos = XMLoadFloat4(&_cameraPos);
-	XMVECTOR target = XMVectorZero();
-	XMVECTOR up = XMVectorSet(0.f, 1.f, 0.f, 0.f);
+	auto pos = _camera.GetPositionF();
+	auto view = _camera.GetView();
+	auto proj = _camera.GetProj();
+	auto viewProj = _camera.GetViewProj();
 
-	XMMATRIX view = XMMatrixLookAtLH(pos, target, up);
-	XMStoreFloat4x4(&_view, view);
-
-	XMMATRIX proj = XMLoadFloat4x4(&_proj);
-
-	XMMATRIX viewProj = view * proj;
-	auto a = XMMatrixDeterminant(view);
-	auto b = XMMatrixDeterminant(proj);
-	auto c = XMMatrixDeterminant(viewProj);
-	XMMATRIX invView = XMMatrixInverse(&a, view);
-	XMMATRIX invProj = XMMatrixInverse(&b, proj);
-	XMMATRIX invViewProj = XMMatrixInverse(&c, viewProj);
+	auto viewDet = XMMatrixDeterminant(view);
+	auto projDet = XMMatrixDeterminant(proj);
+	auto viewprojDet = XMMatrixDeterminant(viewProj);
+	XMMATRIX invView = XMMatrixInverse(&viewDet, view);
+	XMMATRIX invProj = XMMatrixInverse(&projDet, proj);
+	XMMATRIX invViewProj = XMMatrixInverse(&viewprojDet, viewProj);
 
 	XMStoreFloat4x4(&_mainPassCB.View, XMMatrixTranspose(view));
 	XMStoreFloat4x4(&_mainPassCB.InvView, XMMatrixTranspose(invView));
@@ -601,11 +597,11 @@ void D3DRenderer::UpdatePassCB(const Timer& t)
 	XMStoreFloat4x4(&_mainPassCB.InvProj, XMMatrixTranspose(invProj));
 	XMStoreFloat4x4(&_mainPassCB.ViewProj, XMMatrixTranspose(viewProj));
 	XMStoreFloat4x4(&_mainPassCB.InvViewProj, XMMatrixTranspose(invViewProj));
-	_mainPassCB.EyePosW = { _cameraPos.x, _cameraPos.y, _cameraPos.z };
+	_mainPassCB.EyePosW = pos;
 	_mainPassCB.RenderTargetSize = XMFLOAT2((float)_appWidth, (float)_appHeight);
 	_mainPassCB.InvRenderTargetSize = XMFLOAT2(1.0f / _appWidth, 1.0f / _appHeight);
-	_mainPassCB.NearZ = 1.0f;
-	_mainPassCB.FarZ = 1000.0f;
+	_mainPassCB.NearZ = _camera.GetNearZ();
+	_mainPassCB.FarZ = _camera.GetFarZ();
 	_mainPassCB.TotalTime = t.TotalTime();
 	_mainPassCB.DeltaTime = t.DeltaTime();
 	_mainPassCB.AmbientLight = { 0.25f, 0.25f, 0.35f, 1.0f };
