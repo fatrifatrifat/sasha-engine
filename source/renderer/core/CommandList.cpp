@@ -1,4 +1,4 @@
-#include "../../include/sasha/renderer/CommandList.h"
+#include "../../../include/sasha/renderer/core/CommandList.h"
 
 CommandList::CommandList(ID3D12Device* device, ID3D12PipelineState* pso, D3D12_COMMAND_LIST_TYPE type)
 {

@@ -113,10 +113,15 @@ void D3DRenderer::SetAppSize(int w, int h) noexcept
 void D3DRenderer::BuildInputLayout()
 {
 	// Getting and compiling the shaders
-	std::filesystem::path shaderPath1 = std::filesystem::current_path() / ".." / "shaders" / "defaultVS.cso";
-	std::filesystem::path shaderPath2 = std::filesystem::current_path() / ".." / "shaders" / "defaultPS.cso";
-	ThrowIfFailed(D3DReadFileToBlob(shaderPath1.c_str(), &_vertexShader));
-	ThrowIfFailed(D3DReadFileToBlob(shaderPath2.c_str(), &_pixelShader));
+	std::filesystem::path shaderPath = std::filesystem::current_path() / ".." / "shaders";
+
+	auto defaultVsPath = shaderPath / "defaultVS.cso";
+	auto defaultPsPath = shaderPath / "defaultPS.cso";
+
+	auto alphaTestedPs = shaderPath / "alphaTestedPS.cso";
+
+	ThrowIfFailed(D3DReadFileToBlob(defaultVsPath.c_str(), &_vertexShader));
+	ThrowIfFailed(D3DReadFileToBlob(defaultPsPath.c_str(), &_pixelShader));
 
 	// Creating the input layout
 	_inputLayoutDesc =
@@ -132,7 +137,7 @@ void D3DRenderer::BuildGeometry()
 	// Concatenating every vertices in the same array as well as for the indices for more efficient draw calls with a technique called instancing
 	GeometryGenerator g;
 	auto geoSphere = g.CreateGeosphere(1.f, 3);
-	auto box = g.CreateBox(5.f, 2.f, 5.f, 0);
+	auto box = g.CreateBox(5.f, 5.f, 5.f, 0);
 	auto cylinder = g.CreateCylinder(0.5f, 0.3f, 3.f, 10, 10);
 	auto grid = g.CreateGrid(160.f, 160.f, 100, 100);
 	std::filesystem::path skullPath = std::filesystem::current_path() / ".." / "assets" / "models" / "skull.txt";
@@ -219,8 +224,8 @@ void D3DRenderer::BuildLights()
 void D3DRenderer::BuildTextures()
 {
 	std::filesystem::path texPath = std::filesystem::current_path() / ".." / "assets" / "textures";
-	auto box = std::make_unique<Texture>(_device->Get(), *_cmdList, "box", (texPath / "tile.dds").wstring());
-	auto grid = std::make_unique<Texture>(_device->Get(), *_cmdList, "grid", (texPath / "checkboard.dds").wstring());
+	auto box = std::make_unique<Texture>(_device->Get(), *_cmdList, "box", (texPath / "WireFence.dds").wstring());
+	auto grid = std::make_unique<Texture>(_device->Get(), *_cmdList, "grid", (texPath / "tile.dds").wstring());
 	auto cylinder = std::make_unique<Texture>(_device->Get(), *_cmdList, "cylinder", (texPath / "stone.dds").wstring());
 	auto sphere = std::make_unique<Texture>(_device->Get(), *_cmdList, "sphere", (texPath / "water1.dds").wstring());
 	auto lightSphere = std::make_unique<Texture>(_device->Get(), *_cmdList, "lightSphere", (texPath / "ice.dds").wstring());
@@ -260,13 +265,13 @@ void D3DRenderer::BuildTextures()
 void D3DRenderer::BuildScene()
 {
 	_scene.AddInstance("grid", "hillMat");
-	for (float theta = 0, i = 0; theta < 2.f * d3dUtil::PI; theta += (d3dUtil::PI / 25.f), i++)
+	for (float theta = 0; theta < 2.f * d3dUtil::PI; theta += (d3dUtil::PI / 18.f))
 	{
 		_scene.AddInstance("cylinder", "cylinderMat", d3dUtil::GetTranslation(12.f * cosf(theta), 1.5f, 12.f * sinf(theta)));
 		_scene.AddInstance("sphere", "sphereMat", d3dUtil::GetTranslation(12.f * cosf(theta), 3.5f, 12.f * sinf(theta)));
 	}
-	_scene.AddInstance("box", "boxMat", d3dUtil::GetTranslation(0.f, 1.f, 0.f));
-	_scene.AddInstance("sphere", "lightSphereMat", d3dUtil::MatToFloat4x4(XMMatrixMultiply(XMMatrixScaling(2.f, 2.f, 2.f), XMMatrixTranslation(0.f, 3.f, 0.f))));
+	_scene.AddInstance("box", "boxMat", d3dUtil::GetTranslation(0.f, 2.5f, 0.f));
+	_scene.AddInstance("sphere", "lightSphereMat", d3dUtil::MatToFloat4x4(XMMatrixMultiply(XMMatrixScaling(2.f, 2.f, 2.f), XMMatrixTranslation(0.f, 2.f, 0.f))));
 
 	_scene.BuildRenderItems(_geoLib);
 }
@@ -373,38 +378,27 @@ void D3DRenderer::BuildRootSignature()
 void D3DRenderer::BuildPSO()
 {
 	// Building the Pipeline State Object to prepare the GPU to get parts of the pipeline in certain ways
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
-	ZeroMemory(&psoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
-	psoDesc.InputLayout = { 
-		_inputLayoutDesc.data(),
-		static_cast<UINT>(_inputLayoutDesc.size())
-	};
-	psoDesc.pRootSignature = _rootSignature.Get();
-	psoDesc.VS = { 
-		reinterpret_cast<BYTE*>(_vertexShader->GetBufferPointer()),
-		_vertexShader->GetBufferSize()
-	};
-	psoDesc.PS = {
-		reinterpret_cast<BYTE*>(_pixelShader->GetBufferPointer()),
-		_pixelShader->GetBufferSize()
-	};
-	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
-	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-	psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-	psoDesc.SampleMask = UINT_MAX;
-	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-	psoDesc.NumRenderTargets = 1;
-	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-	psoDesc.SampleDesc.Count = 1;
-	psoDesc.SampleDesc.Quality = 0;
-	psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+	_psoCache = std::make_unique<PSOCache>(_device->Get());
 
-	ThrowIfFailed(_device->Get()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&_pso[0])));
+	auto vs = D3D12_SHADER_BYTECODE{ _vertexShader->GetBufferPointer(), _vertexShader->GetBufferSize() };
+	auto ps = D3D12_SHADER_BYTECODE{ _pixelShader->GetBufferPointer(), _pixelShader->GetBufferSize() };
 
-	psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+	RenderTargetDesc rtDesc{};
+	rtDesc._numRenderTargets = 1u;
+	for (UINT i = 0; i < rtDesc._numRenderTargets; i++)
+		rtDesc._rtvFormats[i] = _swapChain->GetRtFormat();
+	rtDesc._dsvFormat = _swapChain->GetDsvFormat();
+	rtDesc._sampleDesc = { 1,0 };
 
-	ThrowIfFailed(_device->Get()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&_pso[1])));
+	_rtDesc = rtDesc;
+
+	GraphicsPipelineRecipe recipe = GraphicsPipelineRecipe::MakeDefault(_inputLayoutDesc, vs, ps);
+	_solid = recipe;
+	_psoCache->GetOrCreate(_rootSignature.Get(), recipe, rtDesc);
+
+	recipe._rasterizerDesc.FillMode = D3D12_FILL_MODE_WIREFRAME;
+	_wireframe = recipe;
+	_psoCache->GetOrCreate(_rootSignature.Get(), recipe, rtDesc);
 }
 
 void D3DRenderer::OnResize()
@@ -426,13 +420,12 @@ void D3DRenderer::BeginFrame()
 	auto& _currCmdAlloc = _currFrameResource->_cmdAlloc;
 
 	ThrowIfFailed(_currFrameResource->_cmdAlloc->Reset());
-	if (_isWireFrame)
-	{
-		_cmdList->Reset(_currCmdAlloc.Get(), _pso[0].Get());
-	}
-	else
-		_cmdList->Reset(_currCmdAlloc.Get(), _pso[1].Get());
 
+	GraphicsPipelineRecipe recipe = _isWireFrame ? _wireframe : _solid;
+	auto* pso = _psoCache->GetOrCreate(_rootSignature.Get(), recipe, _rtDesc);
+
+	_cmdList->Reset(_currCmdAlloc.Get(), pso);
+	
 	_cmdList->ChangeResourceState(_swapChain->GetCurrBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 }
 
@@ -539,7 +532,7 @@ void D3DRenderer::UpdateCamera(const Timer& t)
 		_camera.Rise(-dt);
 
 	if (_mouse->OnRButtonDown())
-		_camera.AddYawPitch(_mouse->GetDeltaX(), _mouse->GetDeltaY());
+		_camera.AddYawPitch(static_cast<float>(_mouse->GetDeltaX()), static_cast<float>(_mouse->GetDeltaY()));
 
 	// WireFrame Control
 	else if (_kbd->IsKeyPressed(VK_F2) && _kbd->WasKeyPressedThisFrame(VK_F2))
@@ -573,6 +566,8 @@ void D3DRenderer::UpdateObjCB(const Timer& t)
 		auto name = _geoLib.GetMaterial(e->_materialId).name;
 		if(name == "sphereMat" || name == "lightSphereMat")
 			XMStoreFloat4x4(&cb.texTrans, XMMatrixTranspose(XMMatrixMultiply(XMMatrixIdentity(), XMMatrixRotationZ(t.TotalTime()))));
+		else if(name == "hillMat")
+			XMStoreFloat4x4(&cb.texTrans, XMMatrixTranspose(XMMatrixScaling(25, 25, 25)));
 		currObjCB->CopyData(e->_cbObjIndex, cb);
 	}
 }

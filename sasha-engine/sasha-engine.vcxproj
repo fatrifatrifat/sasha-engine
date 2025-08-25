@@ -23,9 +23,10 @@
     <ClCompile Include="..\source\core\App.cpp" />
     <ClCompile Include="..\source\input\Keyboard.cpp" />
     <ClCompile Include="..\source\input\Mouse.cpp" />
-    <ClCompile Include="..\source\renderer\CommandList.cpp" />
-    <ClCompile Include="..\source\renderer\CommandQueue.cpp" />
+    <ClCompile Include="..\source\renderer\core\CommandList.cpp" />
+    <ClCompile Include="..\source\renderer\core\CommandQueue.cpp" />
     <ClCompile Include="..\source\renderer\core\Device.cpp" />
+    <ClCompile Include="..\source\renderer\core\RootSignature.cpp" />
     <ClCompile Include="..\source\renderer\core\SwapChain.cpp" />
     <ClCompile Include="..\source\renderer\D3DRenderer.cpp" />
     <ClCompile Include="..\source\renderer\DescriptorHeap.cpp" />
@@ -33,7 +34,7 @@
     <ClCompile Include="..\source\renderer\geometry\GeometryGenerator.cpp" />
     <ClCompile Include="..\source\renderer\geometry\GeometryLibrary.cpp" />
     <ClCompile Include="..\source\renderer\geometry\Texture.cpp" />
-    <ClCompile Include="..\source\renderer\RootSignature.cpp" />
+    <ClCompile Include="..\source\renderer\pipeline\PSOCache.cpp" />
     <ClCompile Include="..\source\renderer\scene\Camera.cpp" />
     <ClCompile Include="..\source\renderer\scene\Scene.cpp" />
     <ClCompile Include="..\source\utility\d3dUtil.cpp" />
@@ -42,9 +43,10 @@
     <ClInclude Include="..\include\sasha\core\App.h" />
     <ClInclude Include="..\include\sasha\input\Keyboard.h" />
     <ClInclude Include="..\include\sasha\input\Mouse.h" />
-    <ClInclude Include="..\include\sasha\renderer\CommandList.h" />
-    <ClInclude Include="..\include\sasha\renderer\CommandQueue.h" />
+    <ClInclude Include="..\include\sasha\renderer\core\CommandList.h" />
+    <ClInclude Include="..\include\sasha\renderer\core\CommandQueue.h" />
     <ClInclude Include="..\include\sasha\renderer\core\Device.h" />
+    <ClInclude Include="..\include\sasha\renderer\core\RootSignature.h" />
     <ClInclude Include="..\include\sasha\renderer\core\SwapChain.h" />
     <ClInclude Include="..\include\sasha\renderer\D3DRenderer.h" />
     <ClInclude Include="..\include\sasha\renderer\DescriptorHeap.h" />
@@ -54,7 +56,9 @@
     <ClInclude Include="..\include\sasha\renderer\geometry\Material.h" />
     <ClInclude Include="..\include\sasha\renderer\geometry\Mesh.h" />
     <ClInclude Include="..\include\sasha\renderer\geometry\Texture.h" />
-    <ClInclude Include="..\include\sasha\renderer\RootSignature.h" />
+    <ClInclude Include="..\include\sasha\renderer\pipeline\GraphicsPipelineState.h" />
+    <ClInclude Include="..\include\sasha\renderer\pipeline\PSOCache.h" />
+    <ClInclude Include="..\include\sasha\renderer\pipeline\PSOKey.h" />
     <ClInclude Include="..\include\sasha\renderer\scene\Camera.h" />
     <ClInclude Include="..\include\sasha\renderer\scene\RenderItem.h" />
     <ClInclude Include="..\include\sasha\renderer\scene\Scene.h" />
@@ -70,12 +74,20 @@
     <Text Include="..\assets\models\skull.txt" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\shaders\defaultPS.cso">
-      <FileType>Document</FileType>
-    </None>
-    <None Include="..\shaders\defaultVS.cso" />
-  </ItemGroup>
-  <ItemGroup>
+    <FxCompile Include="..\shaders\alphaTestedPS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(ProjectDir)..\shaders\%(Filename).cso</ObjectFileOutput>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(ProjectDir)..\shaders\%(Filename).cso</ObjectFileOutput>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(ProjectDir)..\shaders\%(Filename).cso</ObjectFileOutput>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(ProjectDir)..\shaders\%(Filename).cso</ObjectFileOutput>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
+    </FxCompile>
     <FxCompile Include="..\shaders\defaultPS.hlsl">
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
@@ -117,6 +129,10 @@
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(ProjectDir)..\shaders\%(Filename).cso</ObjectFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(ProjectDir)..\shaders\%(Filename).cso</ObjectFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(ProjectDir)..\shaders\%(Filename).cso</ObjectFileOutput>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

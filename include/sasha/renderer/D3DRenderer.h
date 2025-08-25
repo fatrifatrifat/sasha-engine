@@ -94,7 +94,11 @@ private:
 	float _lightTheta = 1.25f * XM_PI;
 	float _lightPhi = 0.1f;
 
-	std::array<ComPtr<ID3D12PipelineState>, 2> _pso;
+	std::unique_ptr<PSOCache> _psoCache;
+	GraphicsPipelineRecipe _solid;
+	GraphicsPipelineRecipe _wireframe;
+	RenderTargetDesc _rtDesc;
+
 	ComPtr<ID3D12RootSignature> _rootSignature;
 	bool _usingDescriptorTables = false;
 };

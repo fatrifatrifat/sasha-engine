@@ -1,7 +1,7 @@
 #pragma once
 #include "../../utility/d3dUtil.h"
 #include "../core/Device.h"
-#include "../CommandList.h"
+#include "../core/CommandList.h"
 #include <ranges>
 
 struct Texture

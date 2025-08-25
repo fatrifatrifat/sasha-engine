@@ -84,6 +84,16 @@ D3D12_RECT* SwapChain::GetRect()
 	return &_scissor;
 }
 
+DXGI_FORMAT SwapChain::GetRtFormat() const noexcept
+{
+	return _rtFormat;
+}
+
+DXGI_FORMAT SwapChain::GetDsvFormat() const noexcept
+{
+	return _dsvFormat;
+}
+
 void SwapChain::CreateRTV(Device* device, const DescriptorHeap& rtvHeap)
 {
 	// Creating a rtv with every buffer held by the SwapChain

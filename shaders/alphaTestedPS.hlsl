@@ -76,6 +76,8 @@ float4 main(VertexIn vin) : SV_TARGET
     
     float4 litColor = ambient + directLight;
 
+    clip(diffuseAlbedo.a - 0.1f);
+    
     litColor.a = diffuseAlbedo.a;
     
     return litColor;

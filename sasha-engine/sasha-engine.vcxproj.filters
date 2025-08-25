@@ -61,11 +61,17 @@
     <Filter Include="source\renderer\scene">
       <UniqueIdentifier>{81b4c76f-67c7-42fd-b4d9-7bc569c39079}</UniqueIdentifier>
     </Filter>
-    <Filter Include="include\sasha\renderer\core">
-      <UniqueIdentifier>{a994608c-256a-4b71-ac63-bb13717dc225}</UniqueIdentifier>
-    </Filter>
     <Filter Include="include\sasha\renderer\scene">
       <UniqueIdentifier>{fb561ef4-a04c-47a2-8bd3-5f80f8227fce}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\sasha\renderer\core">
+      <UniqueIdentifier>{2e70f2d3-74a2-4493-826d-4b156aeb9393}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\sasha\renderer\pipeline">
+      <UniqueIdentifier>{63386b48-43c4-4d5e-b58f-094bf28e268d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source\renderer\pipeline">
+      <UniqueIdentifier>{ac660a6e-b6f8-4af6-8028-e41d3d3a0772}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -96,16 +102,7 @@
     <ClCompile Include="..\source\input\Mouse.cpp">
       <Filter>source\input</Filter>
     </ClCompile>
-    <ClCompile Include="..\source\renderer\CommandQueue.cpp">
-      <Filter>source\renderer</Filter>
-    </ClCompile>
-    <ClCompile Include="..\source\renderer\CommandList.cpp">
-      <Filter>source\renderer</Filter>
-    </ClCompile>
     <ClCompile Include="..\source\renderer\DescriptorHeap.cpp">
-      <Filter>source\renderer</Filter>
-    </ClCompile>
-    <ClCompile Include="..\source\renderer\RootSignature.cpp">
       <Filter>source\renderer</Filter>
     </ClCompile>
     <ClCompile Include="..\source\renderer\core\Device.cpp">
@@ -122,6 +119,18 @@
     </ClCompile>
     <ClCompile Include="..\source\renderer\geometry\Texture.cpp">
       <Filter>source\renderer\geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\renderer\core\CommandList.cpp">
+      <Filter>source\renderer\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\renderer\core\CommandQueue.cpp">
+      <Filter>source\renderer\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\renderer\core\RootSignature.cpp">
+      <Filter>source\renderer\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\renderer\pipeline\PSOCache.cpp">
+      <Filter>source\renderer\pipeline</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -164,19 +173,10 @@
     <ClInclude Include="..\include\sasha\utility\Timer.h">
       <Filter>include\sasha\utility</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\sasha\renderer\CommandQueue.h">
-      <Filter>include\sasha\renderer</Filter>
-    </ClInclude>
     <ClInclude Include="..\include\sasha\sasha.h">
       <Filter>include\sasha</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\sasha\renderer\CommandList.h">
-      <Filter>include\sasha\renderer</Filter>
-    </ClInclude>
     <ClInclude Include="..\include\sasha\renderer\DescriptorHeap.h">
-      <Filter>include\sasha\renderer</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\sasha\renderer\RootSignature.h">
       <Filter>include\sasha\renderer</Filter>
     </ClInclude>
     <ClInclude Include="..\include\sasha\renderer\geometry\Material.h">
@@ -184,12 +184,6 @@
     </ClInclude>
     <ClInclude Include="..\include\sasha\renderer\geometry\Texture.h">
       <Filter>include\sasha\renderer\geometry</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\sasha\renderer\core\Device.h">
-      <Filter>include\sasha\renderer\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\sasha\renderer\core\SwapChain.h">
-      <Filter>include\sasha\renderer\core</Filter>
     </ClInclude>
     <ClInclude Include="..\include\sasha\renderer\scene\Camera.h">
       <Filter>include\sasha\renderer\scene</Filter>
@@ -199,6 +193,30 @@
     </ClInclude>
     <ClInclude Include="..\include\sasha\renderer\scene\Scene.h">
       <Filter>include\sasha\renderer\scene</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\sasha\renderer\core\CommandList.h">
+      <Filter>include\sasha\renderer\core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\sasha\renderer\core\CommandQueue.h">
+      <Filter>include\sasha\renderer\core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\sasha\renderer\core\Device.h">
+      <Filter>include\sasha\renderer\core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\sasha\renderer\core\RootSignature.h">
+      <Filter>include\sasha\renderer\core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\sasha\renderer\core\SwapChain.h">
+      <Filter>include\sasha\renderer\core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\sasha\renderer\pipeline\GraphicsPipelineState.h">
+      <Filter>include\sasha\renderer\pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\sasha\renderer\pipeline\PSOKey.h">
+      <Filter>include\sasha\renderer\pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\sasha\renderer\pipeline\PSOCache.h">
+      <Filter>include\sasha\renderer\pipeline</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -210,14 +228,6 @@
     </Text>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\shaders\defaultVS.cso">
-      <Filter>shaders</Filter>
-    </None>
-    <None Include="..\shaders\defaultPS.cso">
-      <Filter>shaders</Filter>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
     <FxCompile Include="..\shaders\defaultPS.hlsl">
       <Filter>shaders</Filter>
     </FxCompile>
@@ -225,6 +235,9 @@
       <Filter>shaders</Filter>
     </FxCompile>
     <FxCompile Include="..\shaders\LightingUtil.hlsl">
+      <Filter>shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\shaders\alphaTestedPS.hlsl">
       <Filter>shaders</Filter>
     </FxCompile>
   </ItemGroup>

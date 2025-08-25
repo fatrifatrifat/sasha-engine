@@ -179,9 +179,3 @@ float4 ComputeLighting(Light gLights[MaxLights], Material mat,
 
     return float4(result, 0.0f);
 }
-
-
-[numthreads(1, 1, 1)]
-void main(uint3 DTid : SV_DispatchThreadID)
-{
-}

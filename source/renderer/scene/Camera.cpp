@@ -102,7 +102,7 @@ void Camera::Strafe(float dt) noexcept {
 
 void Camera::Rise(float dt) noexcept {
     UpdateView();
-    XMVECTOR u = XMLoadFloat3(&_up);
+    XMVECTOR u = XMVectorSet(0.f, 1.f, 0.f, 0.f);
     XMVECTOR p = XMLoadFloat3(&_position) + u * (_moveSpeed * dt);
     XMStoreFloat3(&_position, p);
     _viewDirty = true;
