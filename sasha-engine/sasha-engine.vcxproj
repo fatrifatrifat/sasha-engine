@@ -37,6 +37,7 @@
     <ClCompile Include="..\source\renderer\pipeline\PSOCache.cpp" />
     <ClCompile Include="..\source\renderer\scene\Camera.cpp" />
     <ClCompile Include="..\source\renderer\scene\Scene.cpp" />
+    <ClCompile Include="..\source\renderer\Shaders.cpp" />
     <ClCompile Include="..\source\utility\d3dUtil.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -62,6 +63,7 @@
     <ClInclude Include="..\include\sasha\renderer\scene\Camera.h" />
     <ClInclude Include="..\include\sasha\renderer\scene\RenderItem.h" />
     <ClInclude Include="..\include\sasha\renderer\scene\Scene.h" />
+    <ClInclude Include="..\include\sasha\renderer\Shaders.h" />
     <ClInclude Include="..\include\sasha\sasha.h" />
     <ClInclude Include="..\include\sasha\utility\d3dException.h" />
     <ClInclude Include="..\include\sasha\utility\d3dIncludes.h" />

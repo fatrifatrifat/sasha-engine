@@ -42,6 +42,7 @@ private:
 	
 	void BeginFrame();
 	void DrawFrame();
+	void DrawRenderItems(const std::vector<RenderItem*>& items, ItemType type);
 	void EndFrame();
 
 	void UpdateCamera(const Timer& t);
@@ -71,8 +72,9 @@ private:
 	std::unique_ptr<DescriptorHeap> _rtvHeap;
 	std::unique_ptr<DescriptorHeap> _dsvHeap;
 
-	ComPtr<ID3DBlob> _vertexShader;
-	ComPtr<ID3DBlob> _pixelShader;
+	std::unique_ptr<Shader> _vertexShader;
+	std::unique_ptr<Shader> _pixelShader;
+	std::unique_ptr<Shader> _alphaTestShader;
 	std::vector<D3D12_INPUT_ELEMENT_DESC> _inputLayoutDesc{};
 
 	GeometryLibrary _geoLib;
@@ -96,6 +98,8 @@ private:
 
 	std::unique_ptr<PSOCache> _psoCache;
 	GraphicsPipelineRecipe _solid;
+	GraphicsPipelineRecipe _alphaTested;
+	GraphicsPipelineRecipe _transparent;
 	GraphicsPipelineRecipe _wireframe;
 	RenderTargetDesc _rtDesc;
 

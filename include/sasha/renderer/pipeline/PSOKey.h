@@ -51,14 +51,14 @@ namespace hashing
 		hash_combine(seed, rasterizer.AntialiasedLineEnable);
 		hash_combine(seed, static_cast<uint64_t>(rasterizer.ConservativeRaster));
 		hash_combine(seed, static_cast<uint64_t>(rasterizer.CullMode));
-		hash_combine(seed, rasterizer.DepthBias);
-		hash_combine(seed, rasterizer.DepthBiasClamp);
+		hash_combine(seed, static_cast<uint64_t>(rasterizer.DepthBias));
+		hash_combine(seed, static_cast<uint64_t>(rasterizer.DepthBiasClamp));
 		hash_combine(seed, rasterizer.DepthClipEnable);
 		hash_combine(seed, static_cast<uint64_t>(rasterizer.FillMode));
 		hash_combine(seed, rasterizer.ForcedSampleCount);
 		hash_combine(seed, rasterizer.FrontCounterClockwise);
 		hash_combine(seed, rasterizer.MultisampleEnable);
-		hash_combine(seed, rasterizer.SlopeScaledDepthBias);
+		hash_combine(seed, static_cast<uint64_t>(rasterizer.SlopeScaledDepthBias));
 		return seed;
 	}
 
@@ -132,10 +132,17 @@ struct PSOKey
 	uint64_t _rtFormats = 0;
 	uint8_t  _topology = static_cast<uint8_t>(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 
-	bool operator==(const PSOKey& rhs)
+	friend bool operator==(const PSOKey& lhs, const PSOKey& rhs)
 	{
-		return _rootSignature == rhs._rootSignature && _vs == rhs._vs && _ps == rhs._ps && _inputLayout == rhs._inputLayout && _rasterizer == rhs._rasterizer
-			&& _blend == rhs._blend && _depth == rhs._depth && _rtFormats == rhs._rtFormats && _topology == rhs._topology;
+		return lhs._rootSignature == rhs._rootSignature &&
+			lhs._vs == rhs._vs &&
+			lhs._ps == rhs._ps &&
+			lhs._inputLayout == rhs._inputLayout &&
+			lhs._rasterizer == rhs._rasterizer &&
+			lhs._blend == rhs._blend &&
+			lhs._depth == rhs._depth &&
+			lhs._rtFormats == rhs._rtFormats &&
+			lhs._topology == rhs._topology;
 	}
 
 	static PSOKey From(const GraphicsPipelineRecipe& recipe, ID3D12RootSignature* rootSignature, const RenderTargetDesc& rt)

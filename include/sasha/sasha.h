@@ -11,5 +11,6 @@
 #include "renderer/scene/Scene.h"
 
 #include "renderer/DescriptorHeap.h"
+#include "renderer/Shaders.h"
 
 #include "renderer/geometry/Texture.h"

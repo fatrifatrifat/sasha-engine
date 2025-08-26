@@ -18,7 +18,6 @@ cbuffer cbMaterial : register(b1)
     float4x4 gMatTransform;
 };
 
-// Constant data that varies per material.
 cbuffer cbPass : register(b2)
 {
     float4x4 gView;
@@ -28,7 +27,7 @@ cbuffer cbPass : register(b2)
     float4x4 gViewProj;
     float4x4 gInvViewProj;
     float3 gEyePosW;
-    float cbPerObjectPad1;
+    float cbPerPassPad1;
     float2 gRenderTargetSize;
     float2 gInvRenderTargetSize;
     float gNearZ;
@@ -37,6 +36,10 @@ cbuffer cbPass : register(b2)
     float gDeltaTime;
     float4 gAmbientLight;
 
+    float4 gFogColor;
+    float gFogStart;
+    float gFogRange;
+    float2 cbPerPassPad2;
     // Indices [0, NUM_DIR_LIGHTS) are directional lights;
     // indices [NUM_DIR_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHTS) are point lights;
     // indices [NUM_DIR_LIGHTS+NUM_POINT_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHT+NUM_SPOT_LIGHTS)

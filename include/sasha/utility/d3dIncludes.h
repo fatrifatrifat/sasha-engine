@@ -22,6 +22,7 @@
 #include <cassert>
 #include <iostream>
 #include <DirectXTex.h>
+#include <string_view>
 #include "d3dx12.h"
 #include "Timer.h"
 #include "d3dException.h"

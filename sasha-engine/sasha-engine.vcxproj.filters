@@ -132,6 +132,9 @@
     <ClCompile Include="..\source\renderer\pipeline\PSOCache.cpp">
       <Filter>source\renderer\pipeline</Filter>
     </ClCompile>
+    <ClCompile Include="..\source\renderer\Shaders.cpp">
+      <Filter>source\renderer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\sasha\core\App.h">
@@ -217,6 +220,9 @@
     </ClInclude>
     <ClInclude Include="..\include\sasha\renderer\pipeline\PSOCache.h">
       <Filter>include\sasha\renderer\pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\sasha\renderer\Shaders.h">
+      <Filter>include\sasha\renderer</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

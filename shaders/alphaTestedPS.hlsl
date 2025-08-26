@@ -32,7 +32,7 @@ cbuffer cbPass : register(b2)
     float4x4 gViewProj;
     float4x4 gInvViewProj;
     float3 gEyePosW;
-    float cbPerObjectPad1;
+    float cbPerPassPad1;
     float2 gRenderTargetSize;
     float2 gInvRenderTargetSize;
     float gNearZ;
@@ -41,6 +41,10 @@ cbuffer cbPass : register(b2)
     float gDeltaTime;
     float4 gAmbientLight;
 
+    float4 gFogColor;
+    float gFogStart;
+    float gFogRange;
+    float2 cbPerPassPad2;
     // Indices [0, NUM_DIR_LIGHTS) are directional lights;
     // indices [NUM_DIR_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHTS) are point lights;
     // indices [NUM_DIR_LIGHTS+NUM_POINT_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHT+NUM_SPOT_LIGHTS)
@@ -77,6 +81,9 @@ float4 main(VertexIn vin) : SV_TARGET
     float4 litColor = ambient + directLight;
 
     clip(diffuseAlbedo.a - 0.1f);
+
+    float fogAmount = saturate((length(gEyePosW - vin.PosW) - gFogStart) / gFogRange);
+    litColor = lerp(litColor, gFogColor, fogAmount);
     
     litColor.a = diffuseAlbedo.a;
     

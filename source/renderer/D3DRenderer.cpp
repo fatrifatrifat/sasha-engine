@@ -1,5 +1,4 @@
 ﻿#include "../../include/sasha/renderer/D3DRenderer.h"
-#include <filesystem>
 #include <thread>
 #include <numbers>
 #include <ranges>
@@ -25,6 +24,8 @@ void D3DRenderer::d3dInit()
 {
 	_device = std::make_unique<Device>();
 
+	_psoCache = std::make_unique<PSOCache>(_device->Get());
+
 	// Creating the command queue which will contain the lists of command that was sent to the GPU
 	// Creating a fence object so we can synchronize the CPU and GPU
 	_cmdQueue = std::make_unique<CommandQueue>(_device->Get());
@@ -41,6 +42,7 @@ void D3DRenderer::d3dInit()
 	_rtvHeap = std::make_unique<DescriptorHeap>(_device->Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2u);
 
 	_dsvHeap = std::make_unique<DescriptorHeap>(_device->Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+
 	OnResize();
 
 	_cmdList->Reset();
@@ -113,15 +115,9 @@ void D3DRenderer::SetAppSize(int w, int h) noexcept
 void D3DRenderer::BuildInputLayout()
 {
 	// Getting and compiling the shaders
-	std::filesystem::path shaderPath = std::filesystem::current_path() / ".." / "shaders";
-
-	auto defaultVsPath = shaderPath / "defaultVS.cso";
-	auto defaultPsPath = shaderPath / "defaultPS.cso";
-
-	auto alphaTestedPs = shaderPath / "alphaTestedPS.cso";
-
-	ThrowIfFailed(D3DReadFileToBlob(defaultVsPath.c_str(), &_vertexShader));
-	ThrowIfFailed(D3DReadFileToBlob(defaultPsPath.c_str(), &_pixelShader));
+	_vertexShader = std::make_unique<Shader>("defaultVS.cso");
+	_pixelShader = std::make_unique<Shader>("defaultPS.cso");
+	_alphaTestShader = std::make_unique<Shader>("alphaTestedPS.cso");
 
 	// Creating the input layout
 	_inputLayoutDesc =
@@ -157,7 +153,7 @@ void D3DRenderer::BuildMaterial()
 {
 	auto skullMat = std::make_unique<Material>();
 	skullMat->name = "skullMat";
-	skullMat->_matProperties._diffuseAlbedo = { 0.12f, 0.10f, 0.05f, 1.0f };
+	skullMat->_matProperties._diffuseAlbedo = { 1.0f, 0.3f, 0.3f, 1.f };
 	skullMat->_matProperties._fresnelR0 = { 1.000f, 0.766f, 0.336f };
 	skullMat->_matProperties._roughness = 0.15f;
 
@@ -169,7 +165,7 @@ void D3DRenderer::BuildMaterial()
 
 	auto sphereMat = std::make_unique<Material>();
 	sphereMat->name = "sphereMat";
-	sphereMat->_matProperties._diffuseAlbedo = { 0.2f, 0.5f, 0.8f, 1.0f };
+	sphereMat->_matProperties._diffuseAlbedo = { 0.2f, 0.5f, 0.8f, 0.45f };
 	sphereMat->_matProperties._fresnelR0 = { 0.6f, 0.6f, 0.9f };
 	sphereMat->_matProperties._roughness = 0.2f;
 
@@ -193,16 +189,16 @@ void D3DRenderer::BuildMaterial()
 
 	auto lightSphereMat = std::make_unique<Material>();
 	lightSphereMat->name = "lightSphereMat";
-	hillMat->_matProperties._diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
-	hillMat->_matProperties._fresnelR0 = { 0.800f, 0.800f, 0.800f };
-	hillMat->_matProperties._roughness = 0.f;
+	lightSphereMat->_matProperties._diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 0.8f };
+	lightSphereMat->_matProperties._fresnelR0 = { 0.800f, 0.800f, 0.800f };
+	lightSphereMat->_matProperties._roughness = 0.f;
 
-	//_geoLib.AddMaterial(skullMat->name, std::move(skullMat));
 	_geoLib.AddMaterial(boxMat->name, std::move(boxMat));
 	_geoLib.AddMaterial(hillMat->name, std::move(hillMat));
 	_geoLib.AddMaterial(cylinderMat->name, std::move(cylinderMat));
 	_geoLib.AddMaterial(sphereMat->name, std::move(sphereMat));
 	_geoLib.AddMaterial(lightSphereMat->name, std::move(lightSphereMat));
+	_geoLib.AddMaterial(skullMat->name, std::move(skullMat));
 	//_geoLib.AddMaterial(gridMat->name, std::move(gridMat));
 }
 
@@ -268,10 +264,11 @@ void D3DRenderer::BuildScene()
 	for (float theta = 0; theta < 2.f * d3dUtil::PI; theta += (d3dUtil::PI / 18.f))
 	{
 		_scene.AddInstance("cylinder", "cylinderMat", d3dUtil::GetTranslation(12.f * cosf(theta), 1.5f, 12.f * sinf(theta)));
-		_scene.AddInstance("sphere", "sphereMat", d3dUtil::GetTranslation(12.f * cosf(theta), 3.5f, 12.f * sinf(theta)));
+		_scene.AddInstance("sphere", "sphereMat", d3dUtil::GetTranslation(12.f * cosf(theta), 3.5f, 12.f * sinf(theta)), ItemType::Transparent);
 	}
-	_scene.AddInstance("box", "boxMat", d3dUtil::GetTranslation(0.f, 2.5f, 0.f));
-	_scene.AddInstance("sphere", "lightSphereMat", d3dUtil::MatToFloat4x4(XMMatrixMultiply(XMMatrixScaling(2.f, 2.f, 2.f), XMMatrixTranslation(0.f, 2.f, 0.f))));
+	_scene.AddInstance("box", "boxMat", d3dUtil::GetTranslation(0.f, 2.6f, 0.f), ItemType::AlphaTested);
+	_scene.AddInstance("sphere", "lightSphereMat", d3dUtil::MatToFloat4x4(XMMatrixMultiply(XMMatrixScaling(2.f, 2.f, 2.f), XMMatrixTranslation(0.f, 2.1f, 0.f))), ItemType::Transparent);
+	_scene.AddInstance("skull", "skullMat", d3dUtil::GetTranslation(0.f, 5.1f, 0.f));
 
 	_scene.BuildRenderItems(_geoLib);
 }
@@ -280,7 +277,7 @@ void D3DRenderer::BuildFrameResources()
 {
 	// Build the Frame Resources
 	for (int i = 0; i < _frameResourceCount; i++)
-		_frameResources.push_back(std::make_unique<FrameResource>(_device->Get(), 1u, static_cast<UINT>(_scene.GetRenderItems().size()), static_cast<UINT>(_geoLib.GetMaterialCount())));
+		_frameResources.push_back(std::make_unique<FrameResource>(_device->Get(), 1u, static_cast<UINT>(_scene.GetAllRenderItems().size()), static_cast<UINT>(_geoLib.GetMaterialCount())));
 }
 
 void D3DRenderer::BuildCbvDescriptorHeap()
@@ -289,9 +286,9 @@ void D3DRenderer::BuildCbvDescriptorHeap()
 	// Making a heap capable of holding 3n + 3 descriptors
 	// 3n so each object can have their own frame resource on each frame resource
 	// + 3 so each frame resource has access to it's global constant buffer that's non unique to each object
-	UINT descriptorHeapCount = static_cast<UINT>(((_scene.GetRenderItems().size() + 1 + _geoLib.GetMaterialCount()) * _frameResourceCount));
+	UINT descriptorHeapCount = static_cast<UINT>(((_scene.GetAllRenderItems().size() + 1 + _geoLib.GetMaterialCount()) * _frameResourceCount));
 	// Getting the index at which the global constant buffers are, right after all the unique constant buffers
-	_matCbvOffset = static_cast<UINT>(_frameResourceCount * _scene.GetRenderItems().size());
+	_matCbvOffset = static_cast<UINT>(_frameResourceCount * _scene.GetAllRenderItems().size());
 	_passCbvOffset = static_cast<UINT>(_matCbvOffset + _frameResourceCount * _geoLib.GetMaterialCount());
 
 	_cbvHeap = std::make_unique<DescriptorHeap>(_device->Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, descriptorHeapCount, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
@@ -309,14 +306,14 @@ void D3DRenderer::BuildConstantBuffers()
 	{
 		// Get the constant buffer from the current frame resource
 		auto objCB = _frameResources[i]->_cb->GetResource();
-		for (UINT j = 0; j < _scene.GetRenderItems().size(); j++)
+		for (UINT j = 0; j < _scene.GetAllRenderItems().size(); j++)
 		{
 			// For each object, get the virtual address of the constant buffer and increment to access the jth object's cb
 			D3D12_GPU_VIRTUAL_ADDRESS cbAddress = objCB->GetGPUVirtualAddress();
 			cbAddress += j * cbSize;
 			
 			// Get the index on the heap that contains the constant buffer for every object and get a handle to the right position of the constant buffer
-			int heapIndex = (int)(i * _scene.GetRenderItems().size() + j);
+			int heapIndex = (int)(i * _scene.GetAllRenderItems().size() + j);
 
 			// Create constant buffer view
 			D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc{};
@@ -378,27 +375,46 @@ void D3DRenderer::BuildRootSignature()
 void D3DRenderer::BuildPSO()
 {
 	// Building the Pipeline State Object to prepare the GPU to get parts of the pipeline in certain ways
-	_psoCache = std::make_unique<PSOCache>(_device->Get());
+	auto vs = _vertexShader->GetByteCode();
+	auto ps = _pixelShader->GetByteCode();
+	auto alphaTest = _alphaTestShader->GetByteCode();
 
-	auto vs = D3D12_SHADER_BYTECODE{ _vertexShader->GetBufferPointer(), _vertexShader->GetBufferSize() };
-	auto ps = D3D12_SHADER_BYTECODE{ _pixelShader->GetBufferPointer(), _pixelShader->GetBufferSize() };
-
-	RenderTargetDesc rtDesc{};
-	rtDesc._numRenderTargets = 1u;
-	for (UINT i = 0; i < rtDesc._numRenderTargets; i++)
-		rtDesc._rtvFormats[i] = _swapChain->GetRtFormat();
-	rtDesc._dsvFormat = _swapChain->GetDsvFormat();
-	rtDesc._sampleDesc = { 1,0 };
-
-	_rtDesc = rtDesc;
-
+	// Solid
 	GraphicsPipelineRecipe recipe = GraphicsPipelineRecipe::MakeDefault(_inputLayoutDesc, vs, ps);
 	_solid = recipe;
-	_psoCache->GetOrCreate(_rootSignature.Get(), recipe, rtDesc);
+	_psoCache->GetOrCreate(_rootSignature.Get(), recipe, _rtDesc);
 
+	// Alphatested
+	recipe._rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
+	recipe._ps = alphaTest;
+	_alphaTested = recipe;
+	_psoCache->GetOrCreate(_rootSignature.Get(), recipe, _rtDesc);
+
+	// Wireframe
+	recipe._rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
 	recipe._rasterizerDesc.FillMode = D3D12_FILL_MODE_WIREFRAME;
+	recipe._ps = ps;
 	_wireframe = recipe;
-	_psoCache->GetOrCreate(_rootSignature.Get(), recipe, rtDesc);
+	_psoCache->GetOrCreate(_rootSignature.Get(), recipe, _rtDesc);
+
+	// Transparency
+	recipe._rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
+	D3D12_RENDER_TARGET_BLEND_DESC rtBlendDesc{};
+	rtBlendDesc.BlendEnable = true;
+	rtBlendDesc.LogicOpEnable = false;
+	rtBlendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	rtBlendDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	rtBlendDesc.BlendOp = D3D12_BLEND_OP_ADD;
+	rtBlendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
+	rtBlendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
+	rtBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	rtBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	rtBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
+	rtBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	recipe._blendDesc.RenderTarget[0] = rtBlendDesc;
+	recipe._depthStentilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	_transparent = recipe;
+	_psoCache->GetOrCreate(_rootSignature.Get(), recipe, _rtDesc);
 }
 
 void D3DRenderer::OnResize()
@@ -409,6 +425,13 @@ void D3DRenderer::OnResize()
 	_cmdList->Reset();
 
 	_swapChain->OnResize(_device.get(), _cmdList.get(), *_rtvHeap.get(), *_dsvHeap.get());
+
+	_rtDesc._numRenderTargets = 1u;
+	for (UINT i = 0; i < _rtDesc._numRenderTargets; i++)
+		_rtDesc._rtvFormats[i] = _swapChain->GetRtFormat();
+	_rtDesc._dsvFormat = _swapChain->GetDsvFormat();
+	_rtDesc._sampleDesc = { 1,0 };
+
 	_camera.OnResize(_appWidth, _appHeight);
 
 	_cmdQueue->ExecuteCmdList(_cmdList->Get());
@@ -462,11 +485,38 @@ void D3DRenderer::DrawFrame()
 		auto passAddress = _currFrameResource->_pass->GetResource()->GetGPUVirtualAddress();
 		_cmdList->Get()->SetGraphicsRootConstantBufferView(3, passAddress);
 	}
+	
+	DrawRenderItems(_scene.GetItems(ItemType::Opaque), ItemType::Opaque);
+	DrawRenderItems(_scene.GetItems(ItemType::AlphaTested), ItemType::AlphaTested);
+	DrawRenderItems(_scene.GetItems(ItemType::Transparent), ItemType::Transparent);
+}
+
+void D3DRenderer::DrawRenderItems(const std::vector<RenderItem*>& items, ItemType type)
+{
+	if (!_isWireFrame)
+	{
+		switch (type)
+		{
+		case ItemType::Opaque:
+			_cmdList->Get()->SetPipelineState(_psoCache->GetOrCreate(_rootSignature.Get(), _solid, _rtDesc));
+			break;
+		case ItemType::Transparent:
+			_cmdList->Get()->SetPipelineState(_psoCache->GetOrCreate(_rootSignature.Get(), _transparent, _rtDesc));
+			break;
+		case ItemType::AlphaTested:
+			_cmdList->Get()->SetPipelineState(_psoCache->GetOrCreate(_rootSignature.Get(), _alphaTested, _rtDesc));
+			break;
+		}
+	}
+	else
+	{
+		_cmdList->Get()->SetPipelineState(_psoCache->GetOrCreate(_rootSignature.Get(), _wireframe, _rtDesc));
+	}
 
 	auto objCBSize = d3dUtil::CalcConstantBufferSize(sizeof(ConstantBuffer));
 	auto matCBSize = d3dUtil::CalcConstantBufferSize(sizeof(MaterialConstant));
 
-	for (const auto& ri : _scene.GetRenderItems())
+	for (const auto& ri : items)
 	{
 		const auto& vbv = _geoLib.GetMesh().VertexBufferView();
 		const auto& ibv = _geoLib.GetMesh().IndexBufferView();
@@ -474,13 +524,19 @@ void D3DRenderer::DrawFrame()
 		const auto& mat = _geoLib.GetMaterial(ri->_materialId);
 		const auto& submesh = _geoLib.GetSubmesh(ri->_submeshId);
 
+		if (mat.name == "boxMat" && !_isWireFrame)
+		{
+			auto* pso = _psoCache->GetOrCreate(_rootSignature.Get(), _alphaTested, _rtDesc);
+			_cmdList->Get()->SetPipelineState(pso);
+		}
+
 		_cmdList->Get()->IASetVertexBuffers(0, 1, &vbv);
 		_cmdList->Get()->IASetIndexBuffer(&ibv);
 		_cmdList->Get()->IASetPrimitiveTopology(ri->_primitiveType);
 
 		if (_usingDescriptorTables)
 		{
-			UINT cbvIndex = _frameResourceIndex * static_cast<UINT>(_scene.GetRenderItems().size()) + ri->_cbObjIndex;
+			UINT cbvIndex = _frameResourceIndex * static_cast<UINT>(_scene.GetAllRenderItems().size()) + ri->_cbObjIndex;
 			UINT matIndex = _frameResourceIndex * static_cast<UINT>(_geoLib.GetMaterialCount()) + _matCbvOffset + mat._matCBIndex;
 
 			_cmdList->Get()->SetGraphicsRootDescriptorTable(0, _cbvHeap->GetGPUStart(cbvIndex));
@@ -492,7 +548,8 @@ void D3DRenderer::DrawFrame()
 			auto matAddress = _currFrameResource->_mat->GetResource()->GetGPUVirtualAddress() + mat._matCBIndex * matCBSize;
 			auto texAddress = _srvHeap->GetGPUStart(mat._diffuseSrvHeapIndex);
 
-			_cmdList->Get()->SetGraphicsRootDescriptorTable(0, texAddress);
+			if(mat.name != "skullMat")
+				_cmdList->Get()->SetGraphicsRootDescriptorTable(0, texAddress);
 			_cmdList->Get()->SetGraphicsRootConstantBufferView(1, cbvAddress);
 			_cmdList->Get()->SetGraphicsRootConstantBufferView(2, matAddress);
 		}
@@ -535,7 +592,7 @@ void D3DRenderer::UpdateCamera(const Timer& t)
 		_camera.AddYawPitch(static_cast<float>(_mouse->GetDeltaX()), static_cast<float>(_mouse->GetDeltaY()));
 
 	// WireFrame Control
-	else if (_kbd->IsKeyPressed(VK_F2) && _kbd->WasKeyPressedThisFrame(VK_F2))
+	if (_kbd->IsKeyPressed(VK_F2) && _kbd->WasKeyPressedThisFrame(VK_F2))
 		_isWireFrame = !_isWireFrame;
 
 	// Light Controll
@@ -558,7 +615,7 @@ void D3DRenderer::UpdateModels(const Timer& t)
 void D3DRenderer::UpdateObjCB(const Timer& t)
 {
 	auto currObjCB = _currFrameResource->_cb.get();
-	for (auto& e : _scene.GetRenderItems())
+	for (auto& e : _scene.GetAllRenderItems())
 	{
 		XMMATRIX world = XMLoadFloat4x4(&e->_world);
 		ConstantBuffer cb;
@@ -600,6 +657,9 @@ void D3DRenderer::UpdatePassCB(const Timer& t)
 	_mainPassCB.TotalTime = t.TotalTime();
 	_mainPassCB.DeltaTime = t.DeltaTime();
 	_mainPassCB.AmbientLight = { 0.25f, 0.25f, 0.35f, 1.0f };
+	_mainPassCB.FogColor = { 0.2f, 0.2f, 0.2f, 1.f };
+	_mainPassCB.FogStart = 0.f;
+	_mainPassCB.FogRange = 50.f;
 
 	// Direction Light
 	/*XMVECTOR lightDir = -DirectX::XMVectorSet(
@@ -641,7 +701,7 @@ void D3DRenderer::UpdatePassCB(const Timer& t)
 	_mainPassCB.Lights[i].Strength = { .3f, .4f, 1.f };
 	_mainPassCB.Lights[i].FalloffStart = 2.0f;
 	_mainPassCB.Lights[i].FalloffEnd = 1000.0f;
-	_mainPassCB.Lights[i].Position = { 0.f, 10.f, 0.f };
+	_mainPassCB.Lights[i].Position = { 0.f, 15.f, 0.f };
 	_mainPassCB.Lights[i].SpotPower = 8.0f;
 
 	_currFrameResource->_pass->CopyData(0, _mainPassCB);
@@ -650,7 +710,7 @@ void D3DRenderer::UpdatePassCB(const Timer& t)
 void D3DRenderer::UpdateMatCB(const Timer& t)
 {
 	auto currMatCB = _currFrameResource->_mat.get();
-	for (auto& e : _scene.GetRenderItems())
+	for (auto& e : _scene.GetAllRenderItems())
 	{
 		auto& mat = _geoLib.GetMaterial(e->_materialId);
 		XMMATRIX transform = XMLoadFloat4x4(&mat._matProperties._transform);

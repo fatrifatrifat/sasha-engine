@@ -46,7 +46,7 @@ struct PassBuffer
 	DirectX::XMFLOAT4X4 ViewProj = d3dUtil::Identity4x4();
 	DirectX::XMFLOAT4X4 InvViewProj = d3dUtil::Identity4x4();
 	DirectX::XMFLOAT3 EyePosW = { 0.0f, 0.0f, 0.0f };
-	float cbPerObjectPad1 = 0.0f;
+	float cbPerPassPad1 = 0.0f;
 	DirectX::XMFLOAT2 RenderTargetSize = { 0.0f, 0.0f };
 	DirectX::XMFLOAT2 InvRenderTargetSize = { 0.0f, 0.0f };
 	float NearZ = 0.0f;
@@ -55,7 +55,20 @@ struct PassBuffer
 	float DeltaTime = 0.0f;
 
 	DirectX::XMFLOAT4 AmbientLight = { 0.0f, 0.0f, 0.0f, 1.0f };
+
+	DirectX::XMFLOAT4 FogColor = { 0.4, 0.4f, 0.4f, 1.f };
+	float FogStart = 5.f;
+	float FogRange = 20.f;
+	DirectX::XMFLOAT2 cbPerPassPad2 = { 0.f, 0.f };
+
 	Light Lights[16];
+};
+
+enum class ItemType : uint8_t
+{
+	Opaque = 0,
+	Transparent,
+	AlphaTested,
 };
 
 struct ObjectInstance
@@ -63,6 +76,7 @@ struct ObjectInstance
 	std::string meshName;       
 	DirectX::XMFLOAT4X4 transform;
 	std::string matName;
+	ItemType type = ItemType::Opaque;
 };
 
 struct SubmeshGeometry
