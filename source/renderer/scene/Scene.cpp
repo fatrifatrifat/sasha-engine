@@ -1,13 +1,13 @@
 #include "../../../include/sasha/renderer/scene/Scene.h"
 
-void Scene::AddInstance(const std::string& meshName, const std::string& matName, const DirectX::XMFLOAT4X4& transform, ItemType type)
+void Scene::AddInstance(const std::string& meshName, const std::string& matName, const DirectX::XMFLOAT4X4& transform, std::vector<ItemType> type)
 {
 	_instances.push_back({ meshName, transform, matName, type });
 }
 
-void Scene::AddLight(const Light& light)
+void Scene::AddLight(const Light& light, ItemType type)
 {
-	_lights.push_back(light);
+	type == ItemType::Opaque ? _lights.push_back(light) : _reflectedLights.push_back(light);
 }
 
 void Scene::BuildRenderItems(GeometryLibrary& geoLib)
@@ -27,19 +27,21 @@ void Scene::BuildRenderItems(GeometryLibrary& geoLib)
 		ri->_materialId = material;
 
 		ri->_world = inst.transform;
-
-		switch (inst.type)
+		
+		for (auto& type : inst.type)
 		{
-		case ItemType::Opaque:
-			_opaques.push_back(ri.get());
-			break;
-		case ItemType::AlphaTested:
-			_alphaTesteds.push_back(ri.get());
-			break;
-		case ItemType::Transparent:
-			_transparents.push_back(ri.get());
-			break;
+			if (type == ItemType::Opaque)
+				_opaques.push_back(ri.get());
+			if (type == ItemType::Transparent)
+				_transparents.push_back(ri.get());
+			if (type == ItemType::AlphaTested)
+				_alphaTesteds.push_back(ri.get());
+			if (type == ItemType::Mirror)
+				_mirrors.push_back(ri.get());
+			if (type == ItemType::Reflected)
+				_reflected.push_back(ri.get());
 		}
+
 		_renderItems.push_back(std::move(ri));
 	}
 }
@@ -59,10 +61,14 @@ std::vector<RenderItem*>& Scene::GetItems(ItemType type)
 		return _alphaTesteds;
 	case ItemType::Transparent:
 		return _transparents;
+	case ItemType::Mirror:
+		return _mirrors;
+	case ItemType::Reflected:
+		return _reflected;
 	}
 }
 
-std::vector<Light>& Scene::GetLights()
+std::vector<Light>& Scene::GetLights(ItemType type)
 {
-	return _lights;
+	return type == ItemType::Opaque ? _lights : _reflectedLights;
 }

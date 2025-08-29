@@ -9,6 +9,8 @@
 
 using namespace DirectX;
 
+std::filesystem::path GeometryGenerator::_modelPath = std::filesystem::current_path() / ".." / "assets" / "models";
+
 GeometryGenerator::MeshData GeometryGenerator::CreateBox(float width, float height, float depth, uint32 numSubdivisions)
 {
 	MeshData meshData;
@@ -658,9 +660,10 @@ GeometryGenerator::MeshData GeometryGenerator::CreateQuad(float x, float y, floa
 	return meshData;
 }
 
-GeometryGenerator::MeshData GeometryGenerator::ReadFile(const std::string& filename)
+GeometryGenerator::MeshData GeometryGenerator::ReadFile(std::string_view filename)
 {
-	std::ifstream file(filename);
+	auto filePath = _modelPath / filename;
+	std::ifstream file(filePath.string());
 	assert(file.is_open());
 
 	std::string ignore;
@@ -678,6 +681,7 @@ GeometryGenerator::MeshData GeometryGenerator::ReadFile(const std::string& filen
 	{
 		file >> mesh.Vertices[i].Position.x >> mesh.Vertices[i].Position.y >> mesh.Vertices[i].Position.z;
 		file >> mesh.Vertices[i].Normal.x >> mesh.Vertices[i].Normal.y >> mesh.Vertices[i].Normal.z;
+		mesh.Vertices[i].TexC = { 0.f, 0.f };
 	}
 
 	file >> ignore >> ignore >> ignore;

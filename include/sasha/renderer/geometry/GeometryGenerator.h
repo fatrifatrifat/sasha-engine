@@ -18,6 +18,7 @@
 #include <DirectXMath.h>
 #include <vector>
 #include <string>
+#include <filesystem>
 
 class GeometryGenerator
 {
@@ -76,6 +77,8 @@ public:
 		std::vector<uint16> mIndices16;
 	};
 
+	static std::filesystem::path _modelPath;
+
 	///<summary>
 	/// Creates a box centered at the origin with the given dimensions, where each
 	/// face has m rows and n columns of vertices.
@@ -112,7 +115,7 @@ public:
 	///</summary>
 	MeshData CreateQuad(float x, float y, float w, float h, float depth);
 
-	MeshData ReadFile(const std::string& filename);
+	MeshData ReadFile(std::string_view filename);
 
 private:
 	void Subdivide(MeshData& meshData);

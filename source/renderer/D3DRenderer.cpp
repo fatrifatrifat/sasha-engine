@@ -51,9 +51,9 @@ void D3DRenderer::d3dInit()
 	BuildInputLayout();
 
 	BuildGeometry();
+	BuildTextures();
 	BuildMaterial();
 	BuildLights();
-	BuildTextures();
 	BuildScene();
 
 	BuildFrameResources();
@@ -136,14 +136,39 @@ void D3DRenderer::BuildGeometry()
 	auto box = g.CreateBox(5.f, 5.f, 5.f, 0);
 	auto cylinder = g.CreateCylinder(0.5f, 0.3f, 3.f, 10, 10);
 	auto grid = g.CreateGrid(160.f, 160.f, 100, 100);
-	std::filesystem::path skullPath = std::filesystem::current_path() / ".." / "assets" / "models" / "skull.txt";
-	auto skull = g.ReadFile(skullPath.string());
+	auto skull = g.ReadFile("skull.txt");
+
+	std::vector<Vertex> mirror =
+	{
+		// Mirror
+		Vertex{{-9.f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f}}, // 16
+		Vertex{{-9.f, 18.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}},
+		Vertex{{+9.f, 18.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {1.0f, 0.0f}},
+		Vertex{{+9.f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f}}
+	};
+
+	std::vector<uint32_t> indices =
+	{
+		0, 1, 2,
+		0, 2, 3
+	};
+
+	GeometryGenerator::MeshData m;
+	m.Vertices.resize(mirror.size());
+	for (int i = 0; i < mirror.size(); i++)
+	{
+		m.Vertices[i].Position = mirror[i].Pos;
+		m.Vertices[i].Normal = mirror[i].Normal;
+		m.Vertices[i].TexC = mirror[i].Tex;
+	}
+	m.Indices32 = indices;
 
 	_geoLib.AddGeometry("box", box);
 	_geoLib.AddGeometry("sphere", geoSphere);
 	_geoLib.AddGeometry("cylinder", cylinder);
 	_geoLib.AddGeometry("grid", grid);
 	_geoLib.AddGeometry("skull", skull);
+	_geoLib.AddGeometry("mirror", m);
 
 	// Once all are added:
 	_geoLib.Upload(_device->Get(), _cmdList->Get());
@@ -153,45 +178,44 @@ void D3DRenderer::BuildMaterial()
 {
 	auto skullMat = std::make_unique<Material>();
 	skullMat->name = "skullMat";
-	skullMat->_matProperties._diffuseAlbedo = { 1.0f, 0.3f, 0.3f, 1.f };
-	skullMat->_matProperties._fresnelR0 = { 1.000f, 0.766f, 0.336f };
-	skullMat->_matProperties._roughness = 0.15f;
+	skullMat->_matProperties._diffuseAlbedo = { 0.5f, 0.3f, 0.3f, 1.f };
+	skullMat->_matProperties._fresnelR0 = { 0.6f, 0.6f, 0.6f };
+	skullMat->_matProperties._roughness = 0.45f;
 
 	auto boxMat = std::make_unique<Material>();
 	boxMat->name = "boxMat";
 	boxMat->_matProperties._diffuseAlbedo = { 1.f, 1.f, 1.f, 1.0f };
 	boxMat->_matProperties._fresnelR0 = { 0.5f, 0.5f, 0.5f };
 	boxMat->_matProperties._roughness = 0.25f;
+	boxMat->_texture = &_geoLib.GetTexture("box");
 
 	auto sphereMat = std::make_unique<Material>();
 	sphereMat->name = "sphereMat";
 	sphereMat->_matProperties._diffuseAlbedo = { 0.2f, 0.5f, 0.8f, 0.45f };
 	sphereMat->_matProperties._fresnelR0 = { 0.6f, 0.6f, 0.9f };
 	sphereMat->_matProperties._roughness = 0.2f;
+	sphereMat->_texture = &_geoLib.GetTexture("sphere");
 
 	auto cylinderMat = std::make_unique<Material>();
 	cylinderMat->name = "cylinderMat";
 	cylinderMat->_matProperties._diffuseAlbedo = { 0.5f, 0.5f, 0.5f, 1.0f };
 	cylinderMat->_matProperties._fresnelR0 = { 0.8f, 0.8f, 0.8f };
 	cylinderMat->_matProperties._roughness = 0.3f;
-
-	auto gridMat = std::make_unique<Material>();
-	gridMat->name = "gridMat";
-	gridMat->_matProperties._diffuseAlbedo = { 0.1f, 0.1f, 0.1f, 1.0f };
-	gridMat->_matProperties._fresnelR0 = { 0.5f, 0.5f, 0.5f };
-	gridMat->_matProperties._roughness = 0.7f;
+	cylinderMat->_texture = &_geoLib.GetTexture("cylinder");
 
 	auto hillMat = std::make_unique<Material>();
 	hillMat->name = "hillMat";
 	hillMat->_matProperties._diffuseAlbedo = { 0.45f, 0.33f, 0.18f, 1.0f };
 	hillMat->_matProperties._fresnelR0 = { 0.800f, 0.600f, 0.400f };
 	hillMat->_matProperties._roughness = 0.55f;
+	hillMat->_texture = &_geoLib.GetTexture("grid");
 
 	auto lightSphereMat = std::make_unique<Material>();
 	lightSphereMat->name = "lightSphereMat";
 	lightSphereMat->_matProperties._diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 0.8f };
-	lightSphereMat->_matProperties._fresnelR0 = { 0.800f, 0.800f, 0.800f };
-	lightSphereMat->_matProperties._roughness = 0.f;
+	lightSphereMat->_matProperties._fresnelR0 = { 0.1f, 0.1f, 0.1f };
+	lightSphereMat->_matProperties._roughness = 0.5f;
+	lightSphereMat->_texture = &_geoLib.GetTexture("lightSphere");
 
 	_geoLib.AddMaterial(boxMat->name, std::move(boxMat));
 	_geoLib.AddMaterial(hillMat->name, std::move(hillMat));
@@ -199,32 +223,41 @@ void D3DRenderer::BuildMaterial()
 	_geoLib.AddMaterial(sphereMat->name, std::move(sphereMat));
 	_geoLib.AddMaterial(lightSphereMat->name, std::move(lightSphereMat));
 	_geoLib.AddMaterial(skullMat->name, std::move(skullMat));
-	//_geoLib.AddMaterial(gridMat->name, std::move(gridMat));
 }
 
 void D3DRenderer::BuildLights()
 {
-	for (float theta = 0; theta < 2.f * d3dUtil::PI; theta += (d3dUtil::PI / 5.f))
-	{
-		Light light;
+	Light light;
 
-		light.Strength = { 1.0f, 0.85f, 0.6f };
-		light.FalloffStart = 1.0f;
-		light.FalloffEnd = 4.0f;
-		light.Position = { 12.f * cosf(theta), 5.f, 12.f * sinf(theta) };
+	light.Strength = { 1.0f, 0.85f, 0.6f };
+	light.FalloffStart = 1.0f;
+	light.FalloffEnd = 12.f;
+	light.Position = { 12.f * cosf(5.f*XM_PI/4.f), 5.f, 12.f * sinf(5.f * XM_PI / 4.f) };
 
-		_scene.AddLight(light);
-	}
+	_scene.AddLight(light);
+
+	light.Strength = { 1.0f, 0.85f, 0.6f };
+	light.FalloffStart = 1.0f;
+	light.FalloffEnd = 12.f;
+	light.Position = { 12.f * cosf(3.f * XM_PI / 2.f), 5.f, 12.f * sinf(3.f * XM_PI / 2.f) };
+
+	_scene.AddLight(light);
+
+	light.Strength = { 1.0f, 0.85f, 0.6f };
+	light.FalloffStart = 1.0f;
+	light.FalloffEnd = 12.f;
+	light.Position = { 12.f * cosf(7.f * XM_PI / 4.f), 5.f, 12.f * sinf(7.f * XM_PI / 4.f) };
+
+	_scene.AddLight(light);
 }
 
 void D3DRenderer::BuildTextures()
 {
-	std::filesystem::path texPath = std::filesystem::current_path() / ".." / "assets" / "textures";
-	auto box = std::make_unique<Texture>(_device->Get(), *_cmdList, "box", (texPath / "WireFence.dds").wstring());
-	auto grid = std::make_unique<Texture>(_device->Get(), *_cmdList, "grid", (texPath / "tile.dds").wstring());
-	auto cylinder = std::make_unique<Texture>(_device->Get(), *_cmdList, "cylinder", (texPath / "stone.dds").wstring());
-	auto sphere = std::make_unique<Texture>(_device->Get(), *_cmdList, "sphere", (texPath / "water1.dds").wstring());
-	auto lightSphere = std::make_unique<Texture>(_device->Get(), *_cmdList, "lightSphere", (texPath / "ice.dds").wstring());
+	auto box = std::make_unique<Texture>(_device->Get(), *_cmdList, "box", "WireFence.dds");
+	auto grid = std::make_unique<Texture>(_device->Get(), *_cmdList, "grid", "tile.dds");
+	auto cylinder = std::make_unique<Texture>(_device->Get(), *_cmdList, "cylinder", "stone.dds");
+	auto sphere = std::make_unique<Texture>(_device->Get(), *_cmdList, "sphere", "water1.dds");
+	auto lightSphere = std::make_unique<Texture>(_device->Get(), *_cmdList, "lightSphere", "ice.dds");
 
 	_srvHeap = std::make_unique<DescriptorHeap>(_device->Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 5u, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 
@@ -261,14 +294,16 @@ void D3DRenderer::BuildTextures()
 void D3DRenderer::BuildScene()
 {
 	_scene.AddInstance("grid", "hillMat");
+	_scene.AddInstance("mirror", "lightSphereMat", d3dUtil::GetTranslation(0.f, 0.f, 12.f), { ItemType::Mirror, ItemType::Transparent });
 	for (float theta = 0; theta < 2.f * d3dUtil::PI; theta += (d3dUtil::PI / 18.f))
 	{
-		_scene.AddInstance("cylinder", "cylinderMat", d3dUtil::GetTranslation(12.f * cosf(theta), 1.5f, 12.f * sinf(theta)));
-		_scene.AddInstance("sphere", "sphereMat", d3dUtil::GetTranslation(12.f * cosf(theta), 3.5f, 12.f * sinf(theta)), ItemType::Transparent);
+		//_scene.AddInstance("cylinder", "cylinderMat", d3dUtil::GetTranslation(12.f * cosf(theta), 1.5f, 12.f * sinf(theta)));
+		//_scene.AddInstance("sphere", "sphereMat", d3dUtil::GetTranslation(12.f * cosf(theta), 3.5f, 12.f * sinf(theta)), ItemType::Transparent);
 	}
-	_scene.AddInstance("box", "boxMat", d3dUtil::GetTranslation(0.f, 2.6f, 0.f), ItemType::AlphaTested);
-	_scene.AddInstance("sphere", "lightSphereMat", d3dUtil::MatToFloat4x4(XMMatrixMultiply(XMMatrixScaling(2.f, 2.f, 2.f), XMMatrixTranslation(0.f, 2.1f, 0.f))), ItemType::Transparent);
-	_scene.AddInstance("skull", "skullMat", d3dUtil::GetTranslation(0.f, 5.1f, 0.f));
+	//_scene.AddInstance("box", "boxMat", d3dUtil::GetTranslation(0.f, 2.6f, 0.f), ItemType::AlphaTested);
+	//_scene.AddInstance("sphere", "lightSphereMat", d3dUtil::MatToFloat4x4(XMMatrixMultiply(XMMatrixScaling(2.f, 2.f, 2.f), XMMatrixTranslation(0.f, 2.1f, 0.f))), ItemType::Transparent);
+	_scene.AddInstance("skull", "skullMat", d3dUtil::MatToFloat4x4(XMMatrixRotationY(XM_PIDIV2)));
+	_scene.AddInstance("skull", "skullMat", d3dUtil::Identity4x4(), { ItemType::Reflected });
 
 	_scene.BuildRenderItems(_geoLib);
 }
@@ -277,7 +312,12 @@ void D3DRenderer::BuildFrameResources()
 {
 	// Build the Frame Resources
 	for (int i = 0; i < _frameResourceCount; i++)
-		_frameResources.push_back(std::make_unique<FrameResource>(_device->Get(), 1u, static_cast<UINT>(_scene.GetAllRenderItems().size()), static_cast<UINT>(_geoLib.GetMaterialCount())));
+		_frameResources.push_back(std::make_unique<FrameResource>(
+			_device->Get(),
+			2u, // Pass buffer
+			static_cast<UINT>(_scene.GetAllRenderItems().size()), // Obj buffer
+			static_cast<UINT>(_geoLib.GetMaterialCount()) // Mat buffer
+		));
 }
 
 void D3DRenderer::BuildCbvDescriptorHeap()
@@ -379,9 +419,9 @@ void D3DRenderer::BuildPSO()
 	auto ps = _pixelShader->GetByteCode();
 	auto alphaTest = _alphaTestShader->GetByteCode();
 
-	// Solid
+	// opaque
 	GraphicsPipelineRecipe recipe = GraphicsPipelineRecipe::MakeDefault(_inputLayoutDesc, vs, ps);
-	_solid = recipe;
+	_opaque = recipe;
 	_psoCache->GetOrCreate(_rootSignature.Get(), recipe, _rtDesc);
 
 	// Alphatested
@@ -408,12 +448,60 @@ void D3DRenderer::BuildPSO()
 	rtBlendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
 	rtBlendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
 	rtBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
-	rtBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
 	rtBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
 	rtBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 	recipe._blendDesc.RenderTarget[0] = rtBlendDesc;
 	recipe._depthStentilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 	_transparent = recipe;
+	_psoCache->GetOrCreate(_rootSignature.Get(), recipe, _rtDesc);
+
+	// Mirror
+	recipe = GraphicsPipelineRecipe::MakeDefault(_inputLayoutDesc, vs, ps);
+	recipe._blendDesc.RenderTarget[0].RenderTargetWriteMask = 0;
+	
+	recipe._depthStentilDesc.DepthEnable = true;
+	recipe._depthStentilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	recipe._depthStentilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+	
+	recipe._depthStentilDesc.StencilEnable = true;
+	recipe._depthStentilDesc.StencilReadMask = 0xff;
+	recipe._depthStentilDesc.StencilWriteMask = 0xff;
+	
+	recipe._depthStentilDesc.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	recipe._depthStentilDesc.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	recipe._depthStentilDesc.FrontFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
+	recipe._depthStentilDesc.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+
+	recipe._depthStentilDesc.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	recipe._depthStentilDesc.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	recipe._depthStentilDesc.BackFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
+	recipe._depthStentilDesc.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+	_mirror = recipe;
+	_psoCache->GetOrCreate(_rootSignature.Get(), recipe, _rtDesc);
+
+	// Reflected
+	recipe = GraphicsPipelineRecipe::MakeDefault(_inputLayoutDesc, vs, ps);
+	recipe._depthStentilDesc.DepthEnable = true;
+	recipe._depthStentilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	recipe._depthStentilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+	
+	recipe._depthStentilDesc.StencilEnable = true;
+	recipe._depthStentilDesc.StencilReadMask = 0xff;
+	recipe._depthStentilDesc.StencilWriteMask = 0xff;
+
+	recipe._depthStentilDesc.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	recipe._depthStentilDesc.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	recipe._depthStentilDesc.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+	recipe._depthStentilDesc.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
+
+	recipe._depthStentilDesc.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	recipe._depthStentilDesc.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	recipe._depthStentilDesc.BackFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+	recipe._depthStentilDesc.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
+
+	recipe._rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
+	recipe._rasterizerDesc.FrontCounterClockwise = true;
+	_reflected = recipe;
 	_psoCache->GetOrCreate(_rootSignature.Get(), recipe, _rtDesc);
 }
 
@@ -444,7 +532,7 @@ void D3DRenderer::BeginFrame()
 
 	ThrowIfFailed(_currFrameResource->_cmdAlloc->Reset());
 
-	GraphicsPipelineRecipe recipe = _isWireFrame ? _wireframe : _solid;
+	GraphicsPipelineRecipe recipe = _isWireFrame ? _wireframe : _opaque;
 	auto* pso = _psoCache->GetOrCreate(_rootSignature.Get(), recipe, _rtDesc);
 
 	_cmdList->Reset(_currCmdAlloc.Get(), pso);
@@ -498,7 +586,7 @@ void D3DRenderer::DrawRenderItems(const std::vector<RenderItem*>& items, ItemTyp
 		switch (type)
 		{
 		case ItemType::Opaque:
-			_cmdList->Get()->SetPipelineState(_psoCache->GetOrCreate(_rootSignature.Get(), _solid, _rtDesc));
+			_cmdList->Get()->SetPipelineState(_psoCache->GetOrCreate(_rootSignature.Get(), _opaque, _rtDesc));
 			break;
 		case ItemType::Transparent:
 			_cmdList->Get()->SetPipelineState(_psoCache->GetOrCreate(_rootSignature.Get(), _transparent, _rtDesc));
@@ -548,7 +636,7 @@ void D3DRenderer::DrawRenderItems(const std::vector<RenderItem*>& items, ItemTyp
 			auto matAddress = _currFrameResource->_mat->GetResource()->GetGPUVirtualAddress() + mat._matCBIndex * matCBSize;
 			auto texAddress = _srvHeap->GetGPUStart(mat._diffuseSrvHeapIndex);
 
-			if(mat.name != "skullMat")
+			if(mat._texture)
 				_cmdList->Get()->SetGraphicsRootDescriptorTable(0, texAddress);
 			_cmdList->Get()->SetGraphicsRootConstantBufferView(1, cbvAddress);
 			_cmdList->Get()->SetGraphicsRootConstantBufferView(2, matAddress);
@@ -621,9 +709,9 @@ void D3DRenderer::UpdateObjCB(const Timer& t)
 		ConstantBuffer cb;
 		XMStoreFloat4x4(&cb.world, XMMatrixTranspose(world));
 		auto name = _geoLib.GetMaterial(e->_materialId).name;
-		if(name == "sphereMat" || name == "lightSphereMat")
-			XMStoreFloat4x4(&cb.texTrans, XMMatrixTranspose(XMMatrixMultiply(XMMatrixIdentity(), XMMatrixRotationZ(t.TotalTime()))));
-		else if(name == "hillMat")
+		//if(name == "sphereMat" || name == "lightSphereMat")
+		//	XMStoreFloat4x4(&cb.texTrans, XMMatrixTranspose(XMMatrixMultiply(XMMatrixIdentity(), XMMatrixRotationZ(t.TotalTime()))));
+		if(name == "hillMat")
 			XMStoreFloat4x4(&cb.texTrans, XMMatrixTranspose(XMMatrixScaling(25, 25, 25)));
 		currObjCB->CopyData(e->_cbObjIndex, cb);
 	}
@@ -698,13 +786,26 @@ void D3DRenderer::UpdatePassCB(const Timer& t)
 		1.f * sinf(_lightPhi) * sinf(_lightTheta),
 		1.0f);
 	XMStoreFloat3(&_mainPassCB.Lights[i].Direction, lightDir);
-	_mainPassCB.Lights[i].Strength = { .3f, .4f, 1.f };
+	_mainPassCB.Lights[i].Strength = { 1.f, 1.f, 1.f };
 	_mainPassCB.Lights[i].FalloffStart = 2.0f;
 	_mainPassCB.Lights[i].FalloffEnd = 1000.0f;
 	_mainPassCB.Lights[i].Position = { 0.f, 15.f, 0.f };
 	_mainPassCB.Lights[i].SpotPower = 8.0f;
 
 	_currFrameResource->_pass->CopyData(0, _mainPassCB);
+
+	_reflectedPassCB = _mainPassCB;
+	XMVECTOR mirrorPlane = XMVectorSet(0.f, 0.f, 1.f, 0.f);
+	XMMATRIX R = XMMatrixReflect(mirrorPlane);
+
+	for (i = 0; i < _scene.GetLights(ItemType::Reflected).size(); i++)
+	{
+		XMVECTOR lightDir = XMLoadFloat3(&_mainPassCB.Lights[i].Direction);
+		XMVECTOR reflectedLightDir = XMVector3TransformNormal(lightDir, R);
+		XMStoreFloat3(&_reflectedPassCB.Lights[i].Direction, reflectedLightDir);
+	}
+	
+	_currFrameResource->_pass->CopyData(1, _reflectedPassCB);
 }
 
 void D3DRenderer::UpdateMatCB(const Timer& t)

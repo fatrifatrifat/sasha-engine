@@ -1,5 +1,6 @@
 #pragma once
 #include "../../utility/d3dUtil.h"
+#include "Texture.h"
 
 struct MaterialConstant
 {
@@ -16,4 +17,5 @@ struct Material
 	int _diffuseSrvHeapIndex = -1;
 	int _numDirtyFlags = 3;
 	MaterialConstant _matProperties;
+	Texture* _texture = nullptr;
 };

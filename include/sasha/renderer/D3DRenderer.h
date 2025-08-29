@@ -86,6 +86,7 @@ private:
 	int _frameResourceIndex = 0u;
 
 	PassBuffer _mainPassCB;
+	PassBuffer _reflectedPassCB;
 	UINT _passCbvOffset = 0u;
 	UINT _matCbvOffset = 0u;
 	std::unique_ptr<DescriptorHeap> _cbvHeap;
@@ -97,10 +98,12 @@ private:
 	float _lightPhi = 0.1f;
 
 	std::unique_ptr<PSOCache> _psoCache;
-	GraphicsPipelineRecipe _solid;
+	GraphicsPipelineRecipe _opaque;
 	GraphicsPipelineRecipe _alphaTested;
 	GraphicsPipelineRecipe _transparent;
 	GraphicsPipelineRecipe _wireframe;
+	GraphicsPipelineRecipe _mirror;
+	GraphicsPipelineRecipe _reflected;
 	RenderTargetDesc _rtDesc;
 
 	ComPtr<ID3D12RootSignature> _rootSignature;

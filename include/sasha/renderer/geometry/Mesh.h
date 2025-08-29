@@ -66,9 +66,11 @@ struct PassBuffer
 
 enum class ItemType : uint8_t
 {
-	Opaque = 0,
+	Opaque,
 	Transparent,
 	AlphaTested,
+	Mirror,
+	Reflected,
 };
 
 struct ObjectInstance
@@ -76,7 +78,7 @@ struct ObjectInstance
 	std::string meshName;       
 	DirectX::XMFLOAT4X4 transform;
 	std::string matName;
-	ItemType type = ItemType::Opaque;
+	std::vector<ItemType> type = { ItemType::Opaque };
 };
 
 struct SubmeshGeometry

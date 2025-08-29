@@ -1,5 +1,81 @@
 #include "../../../include/sasha/renderer/geometry/Texture.h"
 
+std::filesystem::path Texture::_texPath = std::filesystem::current_path() / ".." / "assets" / "textures";
+
+Texture::Texture(ID3D12Device* device, CommandList& cmdList, const std::string& name, std::string_view filename)
+	: _name(name)
+{
+	DirectX::ScratchImage image;
+
+	auto file = _texPath / filename;
+
+	ThrowIfFailed(DirectX::LoadFromWICFile(file.wstring().c_str(), DirectX::WIC_FLAGS_NONE, nullptr, image));
+
+	DirectX::ScratchImage mipChain;
+	ThrowIfFailed(DirectX::GenerateMipMaps(*image.GetImages(), DirectX::TEX_FILTER_BOX, 0, mipChain));
+
+	const auto& chainBase = *mipChain.GetImages();
+	D3D12_RESOURCE_DESC texDesc{};
+	texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	texDesc.Width = (UINT)chainBase.width;
+	texDesc.Height = (UINT)chainBase.height;
+	texDesc.DepthOrArraySize = 1;
+	texDesc.MipLevels = (UINT16)mipChain.GetImageCount();
+	texDesc.Format = chainBase.format;
+	texDesc.SampleDesc.Count = 1;
+	texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	texDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+	const CD3DX12_HEAP_PROPERTIES heapProp(D3D12_HEAP_TYPE_DEFAULT);
+	ThrowIfFailed(device->CreateCommittedResource(
+		&heapProp,
+		D3D12_HEAP_FLAG_NONE,
+		&texDesc,
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		nullptr,
+		IID_PPV_ARGS(&_resource)
+	));
+
+	std::vector<D3D12_SUBRESOURCE_DATA> subresourceData;
+	subresourceData.reserve(mipChain.GetImageCount());
+
+	for (size_t i = 0; i < mipChain.GetImageCount(); ++i) 
+	{
+		const DirectX::Image* img = mipChain.GetImage(i, 0, 0);
+		subresourceData.emplace_back(
+			img->pixels,
+			static_cast<LONG_PTR>(img->rowPitch),
+			static_cast<LONG_PTR>(img->slicePitch)
+		);
+	}
+
+	const auto uploadBufferSize = GetRequiredIntermediateSize(
+		_resource.Get(), 0, (UINT)subresourceData.size()
+	);
+	const auto resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize);
+
+	const CD3DX12_HEAP_PROPERTIES heapPropUpload(D3D12_HEAP_TYPE_UPLOAD);
+	ThrowIfFailed(device->CreateCommittedResource(
+		&heapPropUpload,
+		D3D12_HEAP_FLAG_NONE,
+		&resourceDesc,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(&_uploadBuffer)
+	));
+
+	UpdateSubresources(
+		cmdList.Get(),
+		_resource.Get(),
+		_uploadBuffer.Get(),
+		0, 0,
+		(UINT)subresourceData.size(),
+		subresourceData.data()
+	);
+
+	cmdList.ChangeResourceState(_resource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+}
+
 std::vector<CD3DX12_STATIC_SAMPLER_DESC> Texture::GetStaticSampler()
 {
 	// Applications usually only need a handful of samplers.  So just define them all up front
