@@ -42,7 +42,7 @@ private:
 	
 	void BeginFrame();
 	void DrawFrame();
-	void DrawRenderItems(const std::vector<RenderItem*>& items, ItemType type);
+	void DrawRenderItems(ItemType type);
 	void EndFrame();
 
 	void UpdateCamera(const Timer& t);
