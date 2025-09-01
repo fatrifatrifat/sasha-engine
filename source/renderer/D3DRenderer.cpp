@@ -246,7 +246,7 @@ void D3DRenderer::BuildMaterial()
 
 	auto hillMat = std::make_unique<Material>();
 	hillMat->name = "hillMat";
-	hillMat->_matProperties._diffuseAlbedo = { 0.45f, 0.33f, 0.18f, 1.0f };
+	hillMat->_matProperties._diffuseAlbedo = { 0.45f, 0.33f, 0.18f, 1.0f }; 
 	hillMat->_matProperties._fresnelR0 = { 0.800f, 0.600f, 0.400f };
 	hillMat->_matProperties._roughness = 0.55f;
 	hillMat->_texture = &_geoLib.GetTexture("grid");
@@ -350,39 +350,59 @@ void D3DRenderer::BuildTextures()
 
 void D3DRenderer::BuildScene()
 {
+	// Values for the reflection
+	XMVECTOR mirrorPlane = XMVectorSet(0.f, 0.f, 1.f, 0.f);
+	XMMATRIX R = XMMatrixReflect(mirrorPlane);
+
+	// Values for the shadow
+	XMVECTOR shadowPlane = XMVectorSet(0.f, 1.f, 0.f, 0.f);
+
+	XMVECTOR toMainLight = -XMLoadFloat3(&_scene.GetLights()[1].Direction);
+	XMVECTOR toReflectedLight = -XMLoadFloat3(&_scene.GetLights(ItemType::Reflected)[1].Direction);
+
+	XMMATRIX S1 = XMMatrixShadow(shadowPlane, toMainLight);
+	XMMATRIX S2 = XMMatrixShadow(shadowPlane, toReflectedLight);
+	XMMATRIX shadowOffsetY = XMMatrixTranslation(0.f, 0.001f, 0.f);
+
 	_scene.AddInstance("grid", "hillMat");
 	_scene.AddInstance("walls", "cylinderMat");
 	_scene.AddInstance("mirror", "lightSphereMat", d3dUtil::Identity4x4(), {ItemType::Mirror, ItemType::Transparent});
-	for (float theta = 0; theta < 2.f * d3dUtil::PI; theta += (d3dUtil::PI / 18.f))
-	{
-		//_scene.AddInstance("cylinder", "cylinderMat", d3dUtil::GetTranslation(12.f * cosf(theta), 1.5f, 12.f * sinf(theta)));
-		//_scene.AddInstance("sphere", "sphereMat", d3dUtil::GetTranslation(12.f * cosf(theta), 3.5f, 12.f * sinf(theta)), ItemType::Transparent);
-	}
-	//_scene.AddInstance("box", "boxMat", d3dUtil::GetTranslation(0.f, 2.6f, 0.f), ItemType::AlphaTested);
-	//_scene.AddInstance("sphere", "lightSphereMat", d3dUtil::MatToFloat4x4(XMMatrixMultiply(XMMatrixScaling(2.f, 2.f, 2.f), XMMatrixTranslation(0.f, 2.1f, 0.f))), ItemType::Transparent);
-	
+
 	// Skull Object
 	XMMATRIX skullWorld = XMMatrixRotationY(XM_PIDIV2) * XMMatrixTranslation(0.f, 0.f, -12.f);
 	_scene.AddInstance("skull", "skullMat", d3dUtil::MatToFloat4x4(skullWorld));
 
 	// Skull Shadow of the Object
-	XMVECTOR shadowPlane = XMVectorSet(0.f, 1.f, 0.f, 0.f);
-	XMVECTOR toMainLight = -XMLoadFloat3(&_scene.GetLights()[1].Direction);
-	XMMATRIX S = XMMatrixShadow(shadowPlane, toMainLight);
-	XMMATRIX shadowOffsetY = XMMatrixTranslation(0.f, 0.001f, 0.f);
-	_scene.AddInstance("skull", "shadowMat", d3dUtil::MatToFloat4x4(skullWorld * S * shadowOffsetY), { ItemType::Shadow });
+	_scene.AddInstance("skull", "shadowMat", d3dUtil::MatToFloat4x4(skullWorld * S1 * shadowOffsetY), { ItemType::Shadow });
 
-	// Skull Reflection
-	XMVECTOR mirrorPlane = XMVectorSet(0.f, 0.f, 1.f, 0.f);
-	XMMATRIX R = XMMatrixReflect(mirrorPlane);
-
+	// Skull Reflection	
 	_scene.AddInstance("skull", "skullMat", d3dUtil::MatToFloat4x4(skullWorld * R), { ItemType::Reflected });
 
 	// Skull Shadow of the reflection
-	toMainLight = -XMLoadFloat3(&_scene.GetLights(ItemType::Reflected)[1].Direction);
-	S = XMMatrixShadow(shadowPlane, toMainLight);
-	const auto shadowWorld = (skullWorld * R) * S * shadowOffsetY;
+	const auto shadowWorld = (skullWorld * R) * S2 * shadowOffsetY;
 	_scene.AddInstance("skull", "shadowMat", d3dUtil::MatToFloat4x4(shadowWorld), { ItemType::ReflectedShadow });
+
+	const float rad = 8.f;
+	for (float theta = 0; theta < 2.f * d3dUtil::PI; theta += (d3dUtil::PI / 3.f))
+	{
+		XMMATRIX cylinderWorld = XMMatrixTranslation(rad * cosf(theta), 1.5f, rad * sinf(theta)) * XMMatrixTranslation(0.f, 0.f, -12.f);
+		_scene.AddInstance("cylinder", "cylinderMat", d3dUtil::MatToFloat4x4(cylinderWorld));
+
+		_scene.AddInstance("cylinder", "shadowMat", d3dUtil::MatToFloat4x4(cylinderWorld * S1 * shadowOffsetY), { ItemType::Shadow });
+		_scene.AddInstance("cylinder", "cylinderMat", d3dUtil::MatToFloat4x4(cylinderWorld * R), { ItemType::Reflected });
+
+		auto shadowWorld = (cylinderWorld * R) * S2 * shadowOffsetY;
+		_scene.AddInstance("cylinder", "shadowMat", d3dUtil::MatToFloat4x4(shadowWorld), { ItemType::ReflectedShadow });
+
+		XMMATRIX sphereWorld = XMMatrixTranslation(rad * cosf(theta), 3.5f, rad * sinf(theta)) * XMMatrixTranslation(0.f, 0.f, -12.f);
+		_scene.AddInstance("sphere", "sphereMat", d3dUtil::MatToFloat4x4(sphereWorld), { ItemType::Transparent });
+
+		_scene.AddInstance("sphere", "shadowMat", d3dUtil::MatToFloat4x4(sphereWorld * S1 * shadowOffsetY), { ItemType::Shadow });
+		_scene.AddInstance("sphere", "sphereMat", d3dUtil::MatToFloat4x4(sphereWorld * R), { ItemType::Reflected });
+		
+		shadowWorld = (sphereWorld * R) * S2 * shadowOffsetY;
+		_scene.AddInstance("sphere", "shadowMat", d3dUtil::MatToFloat4x4(shadowWorld), { ItemType::ReflectedShadow });
+	}
 
 	_scene.BuildRenderItems(_geoLib);
 }
