@@ -40,6 +40,10 @@ void Scene::BuildRenderItems(GeometryLibrary& geoLib)
 				_mirrors.push_back(ri.get());
 			if (type == ItemType::Reflected)
 				_reflected.push_back(ri.get());
+			if (type == ItemType::Shadow)
+				_shadows.push_back(ri.get());
+			if (type == ItemType::ReflectedShadow)
+				_reflectedShadows.push_back(ri.get());
 		}
 
 		_renderItems.push_back(std::move(ri));
@@ -65,6 +69,10 @@ std::vector<RenderItem*>& Scene::GetItems(ItemType type)
 		return _mirrors;
 	case ItemType::Reflected:
 		return _reflected;
+	case ItemType::Shadow:
+		return _shadows;
+	case ItemType::ReflectedShadow:
+		return _reflectedShadows;
 	}
 }
 

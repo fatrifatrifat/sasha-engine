@@ -140,29 +140,28 @@ void D3DRenderer::BuildGeometry()
 
 	std::vector<Vertex> walls =
 	{
-		Vertex({-12.5f, 0.0f, 0.0f }, {0.0f, 0.0f, -1.0f}, {0.0f, 2.0f}), // 4
-		Vertex({-12.5f, 18.0f, 0.0f }, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}),
-		Vertex({-9.f,	18.0f, 0.0f }, {0.0f, 0.0f, -1.0f}, {0.5f, 0.0f}),
+		Vertex({-9.75f, 0.0f, 0.0f }, {0.0f, 0.0f, -1.0f}, {0.0f, 2.0f}),
+		Vertex({-9.75f, 9.0f, 0.0f }, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}),
+		Vertex({-9.f,	9.0f, 0.0f }, {0.0f, 0.0f, -1.0f}, {0.5f, 0.0f}),
 		Vertex({-9.f,	0.0f, 0.0f }, {0.0f, 0.0f, -1.0f}, {0.5f, 2.0f}),
 
-		Vertex({9.f,	0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 2.0f}), // 8 
-		Vertex({9.f,	18.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}),
-		Vertex({12.5f,	18.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {2.0f, 0.0f}),
-		Vertex({12.5f,	0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {2.0f, 2.0f}),
+		Vertex({9.f,	0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 2.0f}), 
+		Vertex({9.f,	9.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}),
+		Vertex({9.75f,	9.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {2.0f, 0.0f}),
+		Vertex({9.75f,	0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {2.0f, 2.0f}),
 
-		Vertex({-12.5f, 18.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f}), // 12
-		Vertex({-12.5f, 22.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}),
-		Vertex({+12.5f, 22.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {6.0f, 0.0f}),
-		Vertex({+12.5f, 18.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {6.0f, 1.0f}),
+		Vertex({-9.75f, 9.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f}),
+		Vertex({-9.75f, 9.75f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}),
+		Vertex({+9.75f, 9.75f, 0.0f}, {0.0f, 0.0f, -1.0f}, {6.0f, 0.0f}),
+		Vertex({+9.75f, 9.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {6.0f, 1.0f}),
 	};
 
 	std::vector<Vertex> mirror =
 	{
-		
 		// Mirror
 		Vertex{{-9.f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f}}, // 16
-		Vertex{{-9.f, 18.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}},
-		Vertex{{+9.f, 18.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {1.0f, 0.0f}},
+		Vertex{{-9.f, 9.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}},
+		Vertex{{+9.f, 9.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {1.0f, 0.0f}},
 		Vertex{{+9.f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f}}
 	};
 
@@ -180,7 +179,6 @@ void D3DRenderer::BuildGeometry()
 
 	std::vector<uint32_t> mirrorIndex =
 	{
-		// Mirror
 		0, 1, 2,
 		0, 2, 3
 	};
@@ -260,12 +258,19 @@ void D3DRenderer::BuildMaterial()
 	lightSphereMat->_matProperties._roughness = 0.5f;
 	lightSphereMat->_texture = &_geoLib.GetTexture("lightSphere");
 
+	auto shadowMat = std::make_unique<Material>();
+	shadowMat->name = "shadowMat";
+	shadowMat->_matProperties._diffuseAlbedo = XMFLOAT4(0.f, 0.f, 0.f, 0.5f);
+	shadowMat->_matProperties._fresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
+	shadowMat->_matProperties._roughness = 0.f;
+
 	_geoLib.AddMaterial(boxMat->name, std::move(boxMat));
 	_geoLib.AddMaterial(hillMat->name, std::move(hillMat));
 	_geoLib.AddMaterial(cylinderMat->name, std::move(cylinderMat));
 	_geoLib.AddMaterial(sphereMat->name, std::move(sphereMat));
 	_geoLib.AddMaterial(lightSphereMat->name, std::move(lightSphereMat));
 	_geoLib.AddMaterial(skullMat->name, std::move(skullMat));
+	_geoLib.AddMaterial(shadowMat->name, std::move(shadowMat));
 }
 
 void D3DRenderer::BuildLights()
@@ -285,6 +290,22 @@ void D3DRenderer::BuildLights()
 	light.Direction = { 0.0f, -0.707f, -0.707f };
 
 	_scene.AddLight(light);
+
+	XMVECTOR mirrorPlane = XMVectorSet(0.f, 0.f, 1.f, 0.f);
+	XMMATRIX R = XMMatrixReflect(mirrorPlane);
+
+	const auto& lights = _scene.GetLights();
+	for (int i = 0; i < lights.size(); i++)
+	{
+		XMVECTOR lightDir = XMLoadFloat3(&lights[i].Direction);
+		XMVECTOR reflectedDir = XMVector3TransformNormal(lightDir, R);
+
+		Light reflectedLight;
+		XMStoreFloat3(&reflectedLight.Direction ,reflectedDir);
+		reflectedLight.Strength = lights[i].Strength;
+
+		_scene.AddLight(reflectedLight, ItemType::Reflected);
+	}
 }
 
 void D3DRenderer::BuildTextures()
@@ -339,13 +360,29 @@ void D3DRenderer::BuildScene()
 	}
 	//_scene.AddInstance("box", "boxMat", d3dUtil::GetTranslation(0.f, 2.6f, 0.f), ItemType::AlphaTested);
 	//_scene.AddInstance("sphere", "lightSphereMat", d3dUtil::MatToFloat4x4(XMMatrixMultiply(XMMatrixScaling(2.f, 2.f, 2.f), XMMatrixTranslation(0.f, 2.1f, 0.f))), ItemType::Transparent);
+	
+	// Skull Object
 	XMMATRIX skullWorld = XMMatrixRotationY(XM_PIDIV2) * XMMatrixTranslation(0.f, 0.f, -12.f);
 	_scene.AddInstance("skull", "skullMat", d3dUtil::MatToFloat4x4(skullWorld));
 
+	// Skull Shadow of the Object
+	XMVECTOR shadowPlane = XMVectorSet(0.f, 1.f, 0.f, 0.f);
+	XMVECTOR toMainLight = -XMLoadFloat3(&_scene.GetLights()[1].Direction);
+	XMMATRIX S = XMMatrixShadow(shadowPlane, toMainLight);
+	XMMATRIX shadowOffsetY = XMMatrixTranslation(0.f, 0.001f, 0.f);
+	_scene.AddInstance("skull", "shadowMat", d3dUtil::MatToFloat4x4(skullWorld * S * shadowOffsetY), { ItemType::Shadow });
+
+	// Skull Reflection
 	XMVECTOR mirrorPlane = XMVectorSet(0.f, 0.f, 1.f, 0.f);
 	XMMATRIX R = XMMatrixReflect(mirrorPlane);
 
 	_scene.AddInstance("skull", "skullMat", d3dUtil::MatToFloat4x4(skullWorld * R), { ItemType::Reflected });
+
+	// Skull Shadow of the reflection
+	toMainLight = -XMLoadFloat3(&_scene.GetLights(ItemType::Reflected)[1].Direction);
+	S = XMMatrixShadow(shadowPlane, toMainLight);
+	const auto shadowWorld = (skullWorld * R) * S * shadowOffsetY;
+	_scene.AddInstance("skull", "shadowMat", d3dUtil::MatToFloat4x4(shadowWorld), { ItemType::ReflectedShadow });
 
 	_scene.BuildRenderItems(_geoLib);
 }
@@ -523,6 +560,7 @@ void D3DRenderer::BuildPSO()
 
 	// Reflected
 	recipe = GraphicsPipelineRecipe::MakeDefault(_inputLayoutDesc, vs, ps);
+	recipe._blendDesc = _transparent._blendDesc;
 	recipe._depthStentilDesc.DepthEnable = true;
 	recipe._depthStentilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 	recipe._depthStentilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
@@ -544,6 +582,28 @@ void D3DRenderer::BuildPSO()
 	recipe._rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
 	recipe._rasterizerDesc.FrontCounterClockwise = true;
 	_reflected = recipe;
+	_psoCache->GetOrCreate(_rootSignature.Get(), recipe, _rtDesc);
+
+	// Shadows
+	recipe = _transparent;
+	recipe._depthStentilDesc.DepthEnable = true;
+	recipe._depthStentilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	recipe._depthStentilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+
+	recipe._depthStentilDesc.StencilEnable = true;
+	recipe._depthStentilDesc.StencilReadMask = 0xff;
+	recipe._depthStentilDesc.StencilWriteMask = 0xff;
+
+	recipe._depthStentilDesc.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	recipe._depthStentilDesc.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	recipe._depthStentilDesc.FrontFace.StencilPassOp = D3D12_STENCIL_OP_INCR;
+	recipe._depthStentilDesc.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
+
+	recipe._depthStentilDesc.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	recipe._depthStentilDesc.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	recipe._depthStentilDesc.BackFace.StencilPassOp = D3D12_STENCIL_OP_INCR;
+	recipe._depthStentilDesc.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
+	_shadows = recipe;
 	_psoCache->GetOrCreate(_rootSignature.Get(), recipe, _rtDesc);
 }
 
@@ -591,21 +651,6 @@ void D3DRenderer::DrawFrame()
 	auto dsv = _swapChain->GetDSView(*_dsvHeap.get());
 	_cmdList->Get()->OMSetRenderTargets(1, &currBackBufferView, true, &dsv);
 
-	/*if (_usingDescriptorTables)
-	{
-		ID3D12DescriptorHeap* descriptorHeaps[] = { _cbvHeap->Get() };
-		_cmdList->Get()->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
-	}*/
-
-
-	/*if (_usingDescriptorTables)
-	{
-		int passCbvIndex = _passCbvOffset + _frameResourceIndex;
-		_cmdList->Get()->SetGraphicsRootDescriptorTable(2, _cbvHeap->GetGPUStart(passCbvIndex));
-	}*/
-	//else
-	//{
-	//}
 	_cmdList->Get()->SetGraphicsRootSignature(_rootSignature.Get());
 	ID3D12DescriptorHeap* descriptorsHeap[] = { _srvHeap->Get() };
 	_cmdList->Get()->SetDescriptorHeaps(_countof(descriptorsHeap), descriptorsHeap);
@@ -626,14 +671,17 @@ void D3DRenderer::DrawFrame()
 	passAddress = pass->GetGPUVirtualAddress() + 1 * passCBSize;
 	_cmdList->Get()->SetGraphicsRootConstantBufferView(3, passAddress);
 	DrawRenderItems(ItemType::Reflected);
+	DrawRenderItems(ItemType::ReflectedShadow);
 
 	// Transparents
+	_cmdList->Get()->OMSetStencilRef(0);
 	passAddress = pass->GetGPUVirtualAddress();
 	_cmdList->Get()->SetGraphicsRootConstantBufferView(3, passAddress);
-	_cmdList->Get()->OMSetStencilRef(0);
 
 	DrawRenderItems(ItemType::Transparent);
 	DrawRenderItems(ItemType::AlphaTested);
+
+	DrawRenderItems(ItemType::Shadow);
 }
 
 void D3DRenderer::DrawRenderItems(ItemType type)
@@ -656,6 +704,12 @@ void D3DRenderer::DrawRenderItems(ItemType type)
 			break;
 		case ItemType::Reflected:
 			_cmdList->Get()->SetPipelineState(_psoCache->GetOrCreate(_rootSignature.Get(), _reflected, _rtDesc));
+			break;
+		case ItemType::Shadow:
+			_cmdList->Get()->SetPipelineState(_psoCache->GetOrCreate(_rootSignature.Get(), _shadows, _rtDesc));
+			break;
+		case ItemType::ReflectedShadow:
+			_cmdList->Get()->SetPipelineState(_psoCache->GetOrCreate(_rootSignature.Get(), _shadows, _rtDesc));
 			break;
 		}
 	}

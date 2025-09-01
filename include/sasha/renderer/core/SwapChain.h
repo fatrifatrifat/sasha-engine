@@ -32,7 +32,7 @@ private:
 private:
 	Microsoft::WRL::ComPtr<IDXGISwapChain> _swapChain;
 	DXGI_FORMAT _rtFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-	DXGI_FORMAT _dsvFormat = DXGI_FORMAT_D32_FLOAT;
+	DXGI_FORMAT _dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
 	D3D12_VIEWPORT _vp{};
 	D3D12_RECT _scissor{};

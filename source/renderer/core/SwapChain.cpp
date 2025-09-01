@@ -45,7 +45,7 @@ void SwapChain::OnResize(Device* device, CommandList* cmdList, const DescriptorH
 
 	ThrowIfFailed(_swapChain->ResizeBuffers(_bufferCount,
 		_appWidth, _appHeight,
-		DXGI_FORMAT_R8G8B8A8_UNORM,
+		_rtFormat,
 		DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH
 	));
 
@@ -110,15 +110,15 @@ void SwapChain::CreateDSV(Device* device, CommandList* cmdList, const Descriptor
 	const CD3DX12_HEAP_PROPERTIES heapProperties(D3D12_HEAP_TYPE_DEFAULT);
 	const CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC
 		::Tex2D(
-			DXGI_FORMAT_D32_FLOAT,
+			DXGI_FORMAT_R24G8_TYPELESS,
 			_appWidth, _appHeight,
-			1, 0, 1, 0,
+			1, 1, 1, 0,
 			D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL
 		);
 
 	D3D12_CLEAR_VALUE clearVal{};
 	clearVal.DepthStencil = { 1.f, 0 };
-	clearVal.Format = DXGI_FORMAT_D32_FLOAT;
+	clearVal.Format = _dsvFormat;
 
 	ThrowIfFailed(device->Get()->CreateCommittedResource(
 		&heapProperties,
@@ -132,7 +132,7 @@ void SwapChain::CreateDSV(Device* device, CommandList* cmdList, const Descriptor
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
 	dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
 	dsvDesc.Texture2D.MipSlice = 0;
-	dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
+	dsvDesc.Format = _dsvFormat;
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 	device->Get()->CreateDepthStencilView(_depthStencilBuffer.Get(), &dsvDesc, dsvHeap.GetCPUStart());
 

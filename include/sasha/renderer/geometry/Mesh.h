@@ -71,6 +71,8 @@ enum class ItemType : uint8_t
 	AlphaTested,
 	Mirror,
 	Reflected,
+	Shadow,
+	ReflectedShadow,
 };
 
 struct ObjectInstance

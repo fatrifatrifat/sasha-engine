@@ -23,5 +23,7 @@ private:
 	std::vector<RenderItem*> _alphaTesteds;
 	std::vector<RenderItem*> _mirrors;
 	std::vector<RenderItem*> _reflected;
+	std::vector<RenderItem*> _shadows;
+	std::vector<RenderItem*> _reflectedShadows;
 	std::vector<std::unique_ptr<RenderItem>> _renderItems;
 };
