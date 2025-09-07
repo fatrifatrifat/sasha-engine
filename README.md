@@ -13,7 +13,7 @@ Sasha Engine is a personal project designed to deepen my understanding of **Dire
 
 This project aims to cover a variety of graphics techniques including:
 
-- Blending and Stenciling
+- Model Loading
 - Advanced Shader Stages: Including geometry, compute, and tessellation shaders.
 - ECS
 
