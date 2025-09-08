@@ -37,7 +37,7 @@ public:
 
 private:
     std::vector<Vertex> _vertices;
-    std::vector<std::uint16_t> _indices;
+    std::vector<std::uint32_t> _indices;
 
     std::unordered_map<std::string, SubMeshID> _nameToSubmesh;
     std::unordered_map<std::string, MaterialID> _nameToMaterial;

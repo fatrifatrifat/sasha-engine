@@ -137,6 +137,8 @@ void D3DRenderer::BuildGeometry()
 	auto cylinder = g.CreateCylinder(0.5f, 0.3f, 3.f, 10, 10);
 	auto grid = g.CreateGrid(160.f, 160.f, 100, 100);
 	auto skull = g.ReadFile("skull.txt");
+	//g.LoadMeshWithAssimp(_geoLib, "pusheen", "pusheen_vs_noodle.glb");
+	g.LoadMeshWithAssimp(_geoLib, "dragon", "dragon.obj");
 
 	std::vector<Vertex> walls =
 	{
@@ -219,9 +221,15 @@ void D3DRenderer::BuildMaterial()
 {
 	auto skullMat = std::make_unique<Material>();
 	skullMat->name = "skullMat";
-	skullMat->_matProperties._diffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
-	skullMat->_matProperties._fresnelR0 = { 0.05f, 0.05f, 0.05f };
-	skullMat->_matProperties._roughness = 0.3f;
+
+	skullMat->_matProperties._diffuseAlbedo = { 0.22f, 0.70f, 0.50f, 1.f };
+	{
+		constexpr float ior = 1.5f;
+		const float r0 = ((ior - 1.0f) / (ior + 1.0f)) * ((ior - 1.0f) / (ior + 1.0f));
+		skullMat->_matProperties._fresnelR0 = { r0, r0, r0 };
+	}
+	skullMat->_matProperties._roughness = 0.06f;
+
 
 	auto boxMat = std::make_unique<Material>();
 	boxMat->name = "boxMat";
@@ -368,41 +376,41 @@ void D3DRenderer::BuildScene()
 	_scene.AddInstance("walls", "cylinderMat");
 	_scene.AddInstance("mirror", "lightSphereMat", d3dUtil::Identity4x4(), {ItemType::Mirror, ItemType::Transparent});
 
-	// Skull Object
-	XMMATRIX skullWorld = XMMatrixRotationY(XM_PIDIV2) * XMMatrixTranslation(0.f, 0.f, -12.f);
-	_scene.AddInstance("skull", "skullMat", d3dUtil::MatToFloat4x4(skullWorld));
+	// Object
+	XMMATRIX worldMat = XMMatrixRotationY(3.f*XM_PI/2.f) * XMMatrixScaling(10.f, 10.f, 10.f) * XMMatrixTranslation(0.f, 10.f/7.f*2.f, -12.f);
+	_scene.AddInstance("dragon", "skullMat", d3dUtil::MatToFloat4x4(worldMat));
 
-	// Skull Shadow of the Object
-	_scene.AddInstance("skull", "shadowMat", d3dUtil::MatToFloat4x4(skullWorld * S1 * shadowOffsetY), { ItemType::Shadow });
+	// Shadow of the Object
+	_scene.AddInstance("dragon", "shadowMat", d3dUtil::MatToFloat4x4(worldMat * S1 * shadowOffsetY), { ItemType::Shadow });
 
-	// Skull Reflection	
-	_scene.AddInstance("skull", "skullMat", d3dUtil::MatToFloat4x4(skullWorld * R), { ItemType::Reflected });
+	// Reflection	
+	_scene.AddInstance("dragon", "skullMat", d3dUtil::MatToFloat4x4(worldMat * R), { ItemType::Reflected });
 
-	// Skull Shadow of the reflection
-	const auto shadowWorld = (skullWorld * R) * S2 * shadowOffsetY;
-	_scene.AddInstance("skull", "shadowMat", d3dUtil::MatToFloat4x4(shadowWorld), { ItemType::ReflectedShadow });
+	// Shadow of the reflection
+	const auto shadowWorld = (worldMat * R) * S2 * shadowOffsetY;
+	_scene.AddInstance("dragon", "shadowMat", d3dUtil::MatToFloat4x4(shadowWorld), { ItemType::ReflectedShadow });
 
-	const float rad = 8.f;
-	for (float theta = 0; theta < 2.f * d3dUtil::PI; theta += (d3dUtil::PI / 3.f))
-	{
-		XMMATRIX cylinderWorld = XMMatrixTranslation(rad * cosf(theta), 1.5f, rad * sinf(theta)) * XMMatrixTranslation(0.f, 0.f, -12.f);
-		_scene.AddInstance("cylinder", "cylinderMat", d3dUtil::MatToFloat4x4(cylinderWorld));
+	//const float rad = 8.f;
+	//for (float theta = 0; theta < 2.f * d3dUtil::PI; theta += (d3dUtil::PI / 3.f))
+	//{
+	//	XMMATRIX cylinderWorld = XMMatrixTranslation(rad * cosf(theta), 1.5f, rad * sinf(theta)) * XMMatrixTranslation(0.f, 0.f, -12.f);
+	//	_scene.AddInstance("cylinder", "cylinderMat", d3dUtil::MatToFloat4x4(cylinderWorld));
 
-		_scene.AddInstance("cylinder", "shadowMat", d3dUtil::MatToFloat4x4(cylinderWorld * S1 * shadowOffsetY), { ItemType::Shadow });
-		_scene.AddInstance("cylinder", "cylinderMat", d3dUtil::MatToFloat4x4(cylinderWorld * R), { ItemType::Reflected });
+	//	_scene.AddInstance("cylinder", "shadowMat", d3dUtil::MatToFloat4x4(cylinderWorld * S1 * shadowOffsetY), { ItemType::Shadow });
+	//	_scene.AddInstance("cylinder", "cylinderMat", d3dUtil::MatToFloat4x4(cylinderWorld * R), { ItemType::Reflected });
 
-		auto shadowWorld = (cylinderWorld * R) * S2 * shadowOffsetY;
-		_scene.AddInstance("cylinder", "shadowMat", d3dUtil::MatToFloat4x4(shadowWorld), { ItemType::ReflectedShadow });
+	//	auto shadowWorld = (cylinderWorld * R) * S2 * shadowOffsetY;
+	//	_scene.AddInstance("cylinder", "shadowMat", d3dUtil::MatToFloat4x4(shadowWorld), { ItemType::ReflectedShadow });
 
-		XMMATRIX sphereWorld = XMMatrixTranslation(rad * cosf(theta), 3.5f, rad * sinf(theta)) * XMMatrixTranslation(0.f, 0.f, -12.f);
-		_scene.AddInstance("sphere", "sphereMat", d3dUtil::MatToFloat4x4(sphereWorld), { ItemType::Transparent });
+	//	XMMATRIX sphereWorld = XMMatrixTranslation(rad * cosf(theta), 3.5f, rad * sinf(theta)) * XMMatrixTranslation(0.f, 0.f, -12.f);
+	//	_scene.AddInstance("sphere", "sphereMat", d3dUtil::MatToFloat4x4(sphereWorld), { ItemType::Transparent });
 
-		_scene.AddInstance("sphere", "shadowMat", d3dUtil::MatToFloat4x4(sphereWorld * S1 * shadowOffsetY), { ItemType::Shadow });
-		_scene.AddInstance("sphere", "sphereMat", d3dUtil::MatToFloat4x4(sphereWorld * R), { ItemType::Reflected });
-		
-		shadowWorld = (sphereWorld * R) * S2 * shadowOffsetY;
-		_scene.AddInstance("sphere", "shadowMat", d3dUtil::MatToFloat4x4(shadowWorld), { ItemType::ReflectedShadow });
-	}
+	//	_scene.AddInstance("sphere", "shadowMat", d3dUtil::MatToFloat4x4(sphereWorld * S1 * shadowOffsetY), { ItemType::Shadow });
+	//	_scene.AddInstance("sphere", "sphereMat", d3dUtil::MatToFloat4x4(sphereWorld * R), { ItemType::Reflected });
+	//	
+	//	shadowWorld = (sphereWorld * R) * S2 * shadowOffsetY;
+	//	_scene.AddInstance("sphere", "shadowMat", d3dUtil::MatToFloat4x4(shadowWorld), { ItemType::ReflectedShadow });
+	//}
 
 	_scene.BuildRenderItems(_geoLib);
 }
@@ -520,6 +528,12 @@ void D3DRenderer::BuildPSO()
 
 	// opaque
 	GraphicsPipelineRecipe recipe = GraphicsPipelineRecipe::MakeDefault(_inputLayoutDesc, vs, ps);
+	recipe._rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
+	recipe._rasterizerDesc.FrontCounterClockwise = true;
+	_pusheens = recipe;
+	_psoCache->GetOrCreate(_rootSignature.Get(), recipe, _rtDesc);
+
+	recipe = GraphicsPipelineRecipe::MakeDefault(_inputLayoutDesc, vs, ps);
 	_opaque = recipe;
 	_psoCache->GetOrCreate(_rootSignature.Get(), recipe, _rtDesc);
 
@@ -683,6 +697,7 @@ void D3DRenderer::DrawFrame()
 	_cmdList->Get()->SetGraphicsRootConstantBufferView(3, passAddress);
 	
 	DrawRenderItems(ItemType::Opaque);
+	DrawRenderItems(ItemType::Pusheen);
 
 	_cmdList->Get()->OMSetStencilRef(1);
 	DrawRenderItems(ItemType::Mirror);
@@ -730,6 +745,9 @@ void D3DRenderer::DrawRenderItems(ItemType type)
 			break;
 		case ItemType::ReflectedShadow:
 			_cmdList->Get()->SetPipelineState(_psoCache->GetOrCreate(_rootSignature.Get(), _shadows, _rtDesc));
+			break;
+		case ItemType::Pusheen:
+			_cmdList->Get()->SetPipelineState(_psoCache->GetOrCreate(_rootSignature.Get(), _pusheens, _rtDesc));
 			break;
 		}
 	}

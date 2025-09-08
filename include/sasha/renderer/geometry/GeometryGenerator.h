@@ -19,6 +19,11 @@
 #include <vector>
 #include <string>
 #include <filesystem>
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+
+class GeometryLibrary;
 
 class GeometryGenerator
 {
@@ -73,6 +78,8 @@ public:
 			return mIndices16;
 		}
 
+		static MeshData MeshFromAiMesh(const aiMesh* mesh);
+
 	private:
 		std::vector<uint16> mIndices16;
 	};
@@ -116,6 +123,8 @@ public:
 	MeshData CreateQuad(float x, float y, float w, float h, float depth);
 
 	MeshData ReadFile(std::string_view filename);
+
+	bool LoadMeshWithAssimp(GeometryLibrary& geoLib, const std::string& name, std::string_view file);
 
 private:
 	void Subdivide(MeshData& meshData);

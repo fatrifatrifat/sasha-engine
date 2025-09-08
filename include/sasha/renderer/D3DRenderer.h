@@ -106,6 +106,7 @@ private:
 	GraphicsPipelineRecipe _reflected;
 	GraphicsPipelineRecipe _shadows;
 	GraphicsPipelineRecipe _reflectedShadows;
+	GraphicsPipelineRecipe _pusheens;
 	RenderTargetDesc _rtDesc;
 
 	ComPtr<ID3D12RootSignature> _rootSignature;

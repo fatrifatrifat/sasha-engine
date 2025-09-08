@@ -73,6 +73,7 @@ enum class ItemType : uint8_t
 	Reflected,
 	Shadow,
 	ReflectedShadow,
+	Pusheen,
 };
 
 struct ObjectInstance
@@ -96,7 +97,7 @@ struct MeshGeometry
 	MeshGeometry(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, const VertexContainer& vertices, const IndexContainer& indices)
 		: _vertexStride(sizeof(Vertex))
 		, _vertexByteSize(static_cast<UINT>(vertices.size()* _vertexStride))
-		, _indexByteSize(static_cast<UINT>(indices.size() * sizeof(std::uint16_t)))
+		, _indexByteSize(static_cast<UINT>(indices.size() * sizeof(std::uint32_t)))
 	{
 		ThrowIfFailed(D3DCreateBlob(_vertexByteSize, &_vertexCPU));
 		CopyMemory(_vertexCPU->GetBufferPointer(), vertices.data(), _vertexByteSize);
@@ -125,7 +126,7 @@ struct MeshGeometry
 
 	UINT _vertexStride = 0;
 	UINT _vertexByteSize = 0;
-	DXGI_FORMAT _indexFormat = DXGI_FORMAT_R16_UINT;
+	DXGI_FORMAT _indexFormat = DXGI_FORMAT_R32_UINT;
 	UINT _indexByteSize = 0;
 
 	D3D12_VERTEX_BUFFER_VIEW VertexBufferView() const noexcept

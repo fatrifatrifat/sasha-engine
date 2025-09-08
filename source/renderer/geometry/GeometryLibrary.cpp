@@ -11,7 +11,8 @@ void GeometryLibrary::AddGeometry(const std::string& name, GeometryGenerator::Me
     for (const auto& v : mesh.Vertices)
         _vertices.push_back({ v.Position, v.Normal, v.TexC });
 
-    auto& indices16 = mesh.GetIndices16();
+    //auto& indices16 = mesh.GetIndices16();
+    auto& indices16 = mesh.Indices32;
     _indices.insert(_indices.end(), indices16.begin(), indices16.end());
 
     _nameToSubmesh[name] = static_cast<SubMeshID>(_submeshes.size());

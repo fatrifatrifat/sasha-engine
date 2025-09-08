@@ -44,6 +44,8 @@ void Scene::BuildRenderItems(GeometryLibrary& geoLib)
 				_shadows.push_back(ri.get());
 			if (type == ItemType::ReflectedShadow)
 				_reflectedShadows.push_back(ri.get());
+			if (type == ItemType::Pusheen)
+				_pusheens.push_back(ri.get());
 		}
 
 		_renderItems.push_back(std::move(ri));
@@ -73,6 +75,8 @@ std::vector<RenderItem*>& Scene::GetItems(ItemType type)
 		return _shadows;
 	case ItemType::ReflectedShadow:
 		return _reflectedShadows;
+	case ItemType::Pusheen:
+		return _pusheens;
 	}
 }
 

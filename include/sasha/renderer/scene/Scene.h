@@ -25,5 +25,6 @@ private:
 	std::vector<RenderItem*> _reflected;
 	std::vector<RenderItem*> _shadows;
 	std::vector<RenderItem*> _reflectedShadows;
+	std::vector<RenderItem*> _pusheens;
 	std::vector<std::unique_ptr<RenderItem>> _renderItems;
 };

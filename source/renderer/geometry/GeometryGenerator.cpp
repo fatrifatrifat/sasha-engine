@@ -3,6 +3,7 @@
 //***************************************************************************************
 
 #include "../../../include/sasha/renderer/geometry/GeometryGenerator.h"
+#include "../../../include/sasha/renderer/geometry/GeometryLibrary.h"
 #include <algorithm>
 #include <fstream>
 #include <cassert>
@@ -692,4 +693,84 @@ GeometryGenerator::MeshData GeometryGenerator::ReadFile(std::string_view filenam
 	}
 
 	return mesh;
+}
+
+GeometryGenerator::MeshData MeshFromAiMesh(const aiMesh* mesh)
+{
+	GeometryGenerator::MeshData out;
+	out.Vertices.resize(mesh->mNumVertices);
+	for (uint32_t i = 0; i < mesh->mNumVertices; i++)
+	{
+		auto& v = out.Vertices[i];
+
+		if (mesh->HasPositions())
+			v.Position = { mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z };
+
+		if (mesh->HasNormals())
+			v.Normal = { mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z };
+		else
+			v.Normal = { 0, 1, 0 };
+
+		if (mesh->HasTextureCoords(0))
+			v.TexC = { mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y };
+		else
+			v.TexC = { 0.f, 0.f };
+	}
+
+	out.Indices32.reserve(mesh->mNumFaces * 3);
+	for (uint32_t f = 0; f < mesh->mNumFaces; f++)
+	{
+		const aiFace& face = mesh->mFaces[f];
+		if (face.mNumIndices == 3)
+		{
+			out.Indices32.push_back(face.mIndices[0]);
+			out.Indices32.push_back(face.mIndices[1]);
+			out.Indices32.push_back(face.mIndices[2]);
+		}
+	}
+
+	return out;
+}
+
+bool GeometryGenerator::LoadMeshWithAssimp(GeometryLibrary& geoLib, const std::string& name, std::string_view file)
+{
+	auto filePath = _modelPath / file;
+
+	Assimp::Importer importer;
+
+	const unsigned flags =
+		aiProcess_Triangulate |
+		aiProcess_PreTransformVertices |
+		aiProcess_GenSmoothNormals |
+		aiProcess_CalcTangentSpace |
+		aiProcess_JoinIdenticalVertices |
+		aiProcess_ImproveCacheLocality |
+		aiProcess_OptimizeMeshes |
+		aiProcess_ConvertToLeftHanded;
+
+	const aiScene* scene = importer.ReadFile(filePath.string(), flags);
+	if (!scene || !scene->HasMeshes())
+		return false;
+
+	GeometryGenerator::MeshData meshes;
+	uint32_t baseVertex = 0;
+	uint32_t baseIndex = 0;
+
+	for (uint32_t m = 0; m < scene->mNumMeshes; m++)
+	{
+		const aiMesh* mesh = scene->mMeshes[m];
+		auto md = MeshFromAiMesh(mesh);
+
+		const uint32_t vStart = static_cast<uint32_t>(meshes.Vertices.size());
+		meshes.Vertices.insert(meshes.Vertices.end(), md.Vertices.begin(), md.Vertices.end());
+
+		for (auto idx : md.Indices32)
+			meshes.Indices32.push_back(idx + vStart);
+	
+		baseVertex += static_cast<uint32_t>(md.Vertices.size());
+		baseIndex += static_cast<uint32_t>(md.Indices32.size());
+	}
+
+	geoLib.AddGeometry(name, meshes);
+	return true;
 }
