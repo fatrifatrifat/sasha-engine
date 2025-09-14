@@ -695,7 +695,7 @@ GeometryGenerator::MeshData GeometryGenerator::ReadFile(std::string_view filenam
 	return mesh;
 }
 
-GeometryGenerator::MeshData MeshFromAiMesh(const aiMesh* mesh)
+static GeometryGenerator::MeshData MeshFromAiMesh(const aiMesh* mesh)
 {
 	GeometryGenerator::MeshData out;
 	out.Vertices.resize(mesh->mNumVertices);
@@ -751,6 +751,22 @@ bool GeometryGenerator::LoadMeshWithAssimp(GeometryLibrary& geoLib, const std::s
 	const aiScene* scene = importer.ReadFile(filePath.string(), flags);
 	if (!scene || !scene->HasMeshes())
 		return false;
+
+	if (scene->mNumMaterials > 0)
+	{
+		aiString tex{};
+		
+		const aiMaterial* mtl = scene->mMaterials[0];
+		if (AI_SUCCESS == mtl->GetTexture(aiTextureType_BASE_COLOR, 0, &tex) ||
+			AI_SUCCESS == mtl->GetTexture(aiTextureType_DIFFUSE, 0, &tex))
+		{
+			s_lastDiffusePath = std::filesystem::weakly_canonical(filePath.parent_path() / std::string(tex.C_Str())).lexically_normal();
+		}
+		else
+		{
+			s_lastDiffusePath.clear();
+		}
+	}
 
 	GeometryGenerator::MeshData meshes;
 	uint32_t baseVertex = 0;

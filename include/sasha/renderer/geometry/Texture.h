@@ -7,7 +7,8 @@
 
 struct Texture
 {
-	Texture(ID3D12Device* device, CommandList& cmdList, const std::string& name, std::string_view filename);
+	Texture(ID3D12Device* device, CommandList& cmdList, const std::string& name, const std::filesystem::path&, bool path = false);
+	//Texture(ID3D12Device* device, CommandList& cmdList, const std::string& name, const std::filesystem::path& filename);
 
 	static std::vector<CD3DX12_STATIC_SAMPLER_DESC> GetStaticSampler();
 

@@ -137,8 +137,11 @@ void D3DRenderer::BuildGeometry()
 	auto cylinder = g.CreateCylinder(0.5f, 0.3f, 3.f, 10, 10);
 	auto grid = g.CreateGrid(160.f, 160.f, 100, 100);
 	auto skull = g.ReadFile("skull.txt");
-	//g.LoadMeshWithAssimp(_geoLib, "pusheen", "pusheen_vs_noodle.glb");
-	g.LoadMeshWithAssimp(_geoLib, "dragon", "dragon.obj");
+	//g.LoadMeshWithAssimp(_geoLib, "pusheen", "pusheen/pusheen_the_cat.glb");
+	//g.LoadMeshWithAssimp(_geoLib, "dragon", "dragon/dragon.obj");
+	//g.LoadMeshWithAssimp(_geoLib, "duck", "duck/Duck.gltf");
+	//g.LoadMeshWithAssimp(_geoLib, "truck", "milktruck/CesiumMilkTruck.gltf");
+	g.LoadMeshWithAssimp(_geoLib, "duck", "scifi_helmet/SciFiHelmet.gltf");
 
 	std::vector<Vertex> walls =
 	{
@@ -277,6 +280,18 @@ void D3DRenderer::BuildMaterial()
 	_geoLib.AddMaterial(cylinderMat->name, std::move(cylinderMat));
 	_geoLib.AddMaterial(sphereMat->name, std::move(sphereMat));
 	_geoLib.AddMaterial(lightSphereMat->name, std::move(lightSphereMat));
+	if (!GeometryGenerator::s_lastDiffusePath.empty()) {
+		auto m = std::make_unique<Material>();
+		m->name = "modelMat";
+		m->_matProperties._diffuseAlbedo = { 1.f, 1.f, 1.f, 1.f }; // let the texture drive color
+		m->_matProperties._fresnelR0 = { 0.04f, 0.04f, 0.04f };    // dielectric default
+		m->_matProperties._roughness = 0.5f;
+
+		// Point the material to the texture and SRV slot we just wrote (slot 4).
+		m->_texture = &_geoLib.GetTexture("model_diffuse");
+
+		_geoLib.AddMaterial(m->name, std::move(m));
+	}
 	_geoLib.AddMaterial(skullMat->name, std::move(skullMat));
 	_geoLib.AddMaterial(shadowMat->name, std::move(shadowMat));
 }
@@ -324,7 +339,7 @@ void D3DRenderer::BuildTextures()
 	auto sphere = std::make_unique<Texture>(_device->Get(), *_cmdList, "sphere", "water1.dds");
 	auto lightSphere = std::make_unique<Texture>(_device->Get(), *_cmdList, "lightSphere", "ice.dds");
 
-	_srvHeap = std::make_unique<DescriptorHeap>(_device->Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 5u, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+	_srvHeap = std::make_unique<DescriptorHeap>(_device->Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 6u, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 	srvDesc.Format = box->_resource->GetDesc().Format;
@@ -354,6 +369,22 @@ void D3DRenderer::BuildTextures()
 	_geoLib.AddTexture(cylinder->_name, std::move(cylinder));
 	_geoLib.AddTexture(sphere->_name, std::move(sphere));
 	_geoLib.AddTexture(lightSphere->_name, std::move(lightSphere));
+
+	if (!GeometryGenerator::s_lastDiffusePath.empty()) {
+		auto mdlTex = std::make_unique<Texture>(_device->Get(), *_cmdList,
+			"model_diffuse", GeometryGenerator::s_lastDiffusePath, true);
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+		srvDesc.Format = mdlTex->_resource->GetDesc().Format;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Texture2D.MipLevels = mdlTex->_resource->GetDesc().MipLevels;
+
+		// Overwrite SRV slot #4 (used by lightSphere earlier). Inconvenient but minimal change.
+		_device->Get()->CreateShaderResourceView(mdlTex->_resource.Get(), &srvDesc, _srvHeap->GetCPUStart(5u));
+
+		_geoLib.AddTexture("model_diffuse", std::move(mdlTex));
+	}
 }
 
 void D3DRenderer::BuildScene()
@@ -377,18 +408,18 @@ void D3DRenderer::BuildScene()
 	_scene.AddInstance("mirror", "lightSphereMat", d3dUtil::Identity4x4(), {ItemType::Mirror, ItemType::Transparent});
 
 	// Object
-	XMMATRIX worldMat = XMMatrixRotationY(3.f*XM_PI/2.f) * XMMatrixScaling(10.f, 10.f, 10.f) * XMMatrixTranslation(0.f, 10.f/7.f*2.f, -12.f);
-	_scene.AddInstance("dragon", "skullMat", d3dUtil::MatToFloat4x4(worldMat));
+	XMMATRIX worldMat = XMMatrixRotationY(3.f*XM_PI/2.f) * XMMatrixScaling(1, 1, 1) * XMMatrixTranslation(0.f, 3.f, -12.f);
+	_scene.AddInstance("duck", "modelMat", d3dUtil::MatToFloat4x4(worldMat));
 
 	// Shadow of the Object
-	_scene.AddInstance("dragon", "shadowMat", d3dUtil::MatToFloat4x4(worldMat * S1 * shadowOffsetY), { ItemType::Shadow });
+	_scene.AddInstance("duck", "shadowMat", d3dUtil::MatToFloat4x4(worldMat * S1 * shadowOffsetY), { ItemType::Shadow });
 
 	// Reflection	
-	_scene.AddInstance("dragon", "skullMat", d3dUtil::MatToFloat4x4(worldMat * R), { ItemType::Reflected });
+	_scene.AddInstance("duck", "modelMat", d3dUtil::MatToFloat4x4(worldMat * R), { ItemType::Reflected });
 
 	// Shadow of the reflection
 	const auto shadowWorld = (worldMat * R) * S2 * shadowOffsetY;
-	_scene.AddInstance("dragon", "shadowMat", d3dUtil::MatToFloat4x4(shadowWorld), { ItemType::ReflectedShadow });
+	_scene.AddInstance("duck", "shadowMat", d3dUtil::MatToFloat4x4(shadowWorld), { ItemType::ReflectedShadow });
 
 	//const float rad = 8.f;
 	//for (float theta = 0; theta < 2.f * d3dUtil::PI; theta += (d3dUtil::PI / 3.f))

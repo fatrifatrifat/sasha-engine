@@ -117,9 +117,6 @@
     <ClCompile Include="..\source\renderer\scene\Scene.cpp">
       <Filter>source\renderer\scene</Filter>
     </ClCompile>
-    <ClCompile Include="..\source\renderer\geometry\Texture.cpp">
-      <Filter>source\renderer\geometry</Filter>
-    </ClCompile>
     <ClCompile Include="..\source\renderer\core\CommandList.cpp">
       <Filter>source\renderer\core</Filter>
     </ClCompile>
@@ -134,6 +131,9 @@
     </ClCompile>
     <ClCompile Include="..\source\renderer\Shaders.cpp">
       <Filter>source\renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\renderer\geometry\Texture.cpp">
+      <Filter>source\renderer\geometry</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

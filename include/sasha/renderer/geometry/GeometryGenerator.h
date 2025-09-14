@@ -28,6 +28,7 @@ class GeometryLibrary;
 class GeometryGenerator
 {
 public:
+	static inline std::filesystem::path s_lastDiffusePath;
 
 	using uint16 = std::uint16_t;
 	using uint32 = std::uint32_t;
@@ -77,8 +78,6 @@ public:
 
 			return mIndices16;
 		}
-
-		static MeshData MeshFromAiMesh(const aiMesh* mesh);
 
 	private:
 		std::vector<uint16> mIndices16;

@@ -1,18 +1,33 @@
 #include "../../../include/sasha/renderer/geometry/Texture.h"
 
+using namespace DirectX;
+
 std::filesystem::path Texture::_texPath = std::filesystem::current_path() / ".." / "assets" / "textures";
 
-Texture::Texture(ID3D12Device* device, CommandList& cmdList, const std::string& name, std::string_view filename)
+static ScratchImage LoadMipFromPath(const std::filesystem::path& p)
+{
+	ScratchImage image;
+	ThrowIfFailed(LoadFromWICFile(p.wstring().c_str(), WIC_FLAGS_NONE, nullptr, image));
+
+	ScratchImage mipChain;
+	ThrowIfFailed(GenerateMipMaps(*image.GetImages(), TEX_FILTER_BOX, 0, mipChain));
+
+	return mipChain;
+}
+
+Texture::Texture(ID3D12Device* device, CommandList& cmdList, const std::string& name, const std::filesystem::path& filename, bool path)
 	: _name(name)
 {
-	DirectX::ScratchImage image;
-
-	auto file = _texPath / filename;
-
-	ThrowIfFailed(DirectX::LoadFromWICFile(file.wstring().c_str(), DirectX::WIC_FLAGS_NONE, nullptr, image));
-
 	DirectX::ScratchImage mipChain;
-	ThrowIfFailed(DirectX::GenerateMipMaps(*image.GetImages(), DirectX::TEX_FILTER_BOX, 0, mipChain));
+	if (!path)
+	{
+		auto file = _texPath / filename;
+		mipChain = LoadMipFromPath(file);
+	}
+	else
+	{
+		mipChain = LoadMipFromPath(filename);
+	}
 
 	const auto& chainBase = *mipChain.GetImages();
 	D3D12_RESOURCE_DESC texDesc{};
