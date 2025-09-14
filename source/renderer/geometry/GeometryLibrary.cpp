@@ -27,15 +27,49 @@ void GeometryLibrary::AddMaterial(const std::string& name, std::unique_ptr<Mater
     _materials.push_back(std::move(mat));
 }
 
-void GeometryLibrary::AddTexture(const std::string& name, std::unique_ptr<Texture>&& tex)
+void GeometryLibrary::AddTexture(std::string& name, std::unique_ptr<Texture>&& tex)
 {
+    static int repetitiveCount = 1;
+    if (_nameToTexture.find(name) != _nameToTexture.end())
+    {
+        name = name.substr(0, name.size() - 1) + std::to_string(repetitiveCount);
+        repetitiveCount++;
+    }
     _nameToTexture[name] = static_cast<UINT>(_textures.size());
     _textures.push_back(std::move(tex));
+}
+
+void GeometryLibrary::AddModelTexturePath(const std::filesystem::path& filePath)
+{
+    _modelTexturePaths.push_back(filePath);
 }
 
 void GeometryLibrary::Upload(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList)
 {
     _mesh = std::make_unique<MeshGeometry>(device, cmdList, _vertices, _indices);
+}
+
+std::unique_ptr<DescriptorHeap> GeometryLibrary::BuildSrvHeap(ID3D12Device* device) const
+{
+    auto srvHeap = std::make_unique<DescriptorHeap>(
+        device,
+        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+        _textures.size(),
+        D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
+    );
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+    for (UINT i = 0; i < _textures.size(); i++)
+    {
+        srvDesc.Format = _textures[i]->_resource->GetDesc().Format;
+        srvDesc.Texture2D.MipLevels = _textures[i]->_resource->GetDesc().MipLevels;
+        device->CreateShaderResourceView(_textures[i]->_resource.Get(), &srvDesc, srvHeap->GetCPUStart(i));
+    }
+
+    return srvHeap;
 }
 
 const MeshGeometry& GeometryLibrary::GetMesh() const noexcept
@@ -106,6 +140,16 @@ Texture& GeometryLibrary::GetTexture(TextureID id)
     assert(id < _textures.size() && _textures[id]);
     return *_textures.at(id);
 
+}
+
+const std::vector<std::filesystem::path>& GeometryLibrary::GetModelTexturePaths() const
+{
+    return _modelTexturePaths;
+}
+
+std::vector<std::filesystem::path>& GeometryLibrary::GetModelTexturePaths()
+{
+    return _modelTexturePaths;
 }
 
 MaterialID GeometryLibrary::GetMaterialID(const std::string& name) const

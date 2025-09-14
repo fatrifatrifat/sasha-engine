@@ -759,13 +759,7 @@ bool GeometryGenerator::LoadMeshWithAssimp(GeometryLibrary& geoLib, const std::s
 		const aiMaterial* mtl = scene->mMaterials[0];
 		if (AI_SUCCESS == mtl->GetTexture(aiTextureType_BASE_COLOR, 0, &tex) ||
 			AI_SUCCESS == mtl->GetTexture(aiTextureType_DIFFUSE, 0, &tex))
-		{
-			s_lastDiffusePath = std::filesystem::weakly_canonical(filePath.parent_path() / std::string(tex.C_Str())).lexically_normal();
-		}
-		else
-		{
-			s_lastDiffusePath.clear();
-		}
+			geoLib.AddModelTexturePath(std::filesystem::weakly_canonical(filePath.parent_path() / std::string(tex.C_Str())).lexically_normal());
 	}
 
 	GeometryGenerator::MeshData meshes;

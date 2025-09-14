@@ -134,14 +134,13 @@ void D3DRenderer::BuildGeometry()
 	GeometryGenerator g;
 	auto geoSphere = g.CreateGeosphere(1.f, 3);
 	auto box = g.CreateBox(5.f, 5.f, 5.f, 0);
-	auto cylinder = g.CreateCylinder(0.5f, 0.3f, 3.f, 10, 10);
+	auto cylinder = g.CreateCylinder(0.7f, 0.5f, 4.2f, 10, 10);
 	auto grid = g.CreateGrid(160.f, 160.f, 100, 100);
 	auto skull = g.ReadFile("skull.txt");
-	//g.LoadMeshWithAssimp(_geoLib, "pusheen", "pusheen/pusheen_the_cat.glb");
 	//g.LoadMeshWithAssimp(_geoLib, "dragon", "dragon/dragon.obj");
-	//g.LoadMeshWithAssimp(_geoLib, "duck", "duck/Duck.gltf");
-	//g.LoadMeshWithAssimp(_geoLib, "truck", "milktruck/CesiumMilkTruck.gltf");
-	g.LoadMeshWithAssimp(_geoLib, "duck", "scifi_helmet/SciFiHelmet.gltf");
+	g.LoadMeshWithAssimp(_geoLib, "duck", "duck/Duck.gltf");
+	g.LoadMeshWithAssimp(_geoLib, "truck", "milktruck/CesiumMilkTruck.gltf");
+	g.LoadMeshWithAssimp(_geoLib, "scifi_helmet", "scifi_helmet/SciFiHelmet.gltf");
 
 	std::vector<Vertex> walls =
 	{
@@ -280,18 +279,20 @@ void D3DRenderer::BuildMaterial()
 	_geoLib.AddMaterial(cylinderMat->name, std::move(cylinderMat));
 	_geoLib.AddMaterial(sphereMat->name, std::move(sphereMat));
 	_geoLib.AddMaterial(lightSphereMat->name, std::move(lightSphereMat));
-	if (!GeometryGenerator::s_lastDiffusePath.empty()) {
+
+	for (size_t i = 0; i < _geoLib.GetModelTexturePaths().size(); i++)
+	{
 		auto m = std::make_unique<Material>();
-		m->name = "modelMat";
-		m->_matProperties._diffuseAlbedo = { 1.f, 1.f, 1.f, 1.f }; // let the texture drive color
-		m->_matProperties._fresnelR0 = { 0.04f, 0.04f, 0.04f };    // dielectric default
+		m->name = "modelMat" + std::to_string(i);
+		m->_matProperties._diffuseAlbedo = { 1.f, 1.f, 1.f, 1.f };
+		m->_matProperties._fresnelR0 = { 0.04f, 0.04f, 0.04f };
 		m->_matProperties._roughness = 0.5f;
 
-		// Point the material to the texture and SRV slot we just wrote (slot 4).
-		m->_texture = &_geoLib.GetTexture("model_diffuse");
+		m->_texture = &_geoLib.GetTexture("model_diffuse" + std::to_string(i));
 
 		_geoLib.AddMaterial(m->name, std::move(m));
 	}
+
 	_geoLib.AddMaterial(skullMat->name, std::move(skullMat));
 	_geoLib.AddMaterial(shadowMat->name, std::move(shadowMat));
 }
@@ -339,52 +340,20 @@ void D3DRenderer::BuildTextures()
 	auto sphere = std::make_unique<Texture>(_device->Get(), *_cmdList, "sphere", "water1.dds");
 	auto lightSphere = std::make_unique<Texture>(_device->Get(), *_cmdList, "lightSphere", "ice.dds");
 
-	_srvHeap = std::make_unique<DescriptorHeap>(_device->Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 6u, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
-
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-	srvDesc.Format = box->_resource->GetDesc().Format;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Texture2D.MipLevels = box->_resource->GetDesc().MipLevels;
-	_device->Get()->CreateShaderResourceView(box->_resource.Get(), &srvDesc, _srvHeap->GetCPUStart());
-
-	srvDesc.Format = grid->_resource->GetDesc().Format;
-	srvDesc.Texture2D.MipLevels = grid->_resource->GetDesc().MipLevels;
-	_device->Get()->CreateShaderResourceView(grid->_resource.Get(), &srvDesc, _srvHeap->GetCPUStart(1u));
-
-	srvDesc.Format = cylinder->_resource->GetDesc().Format;
-	srvDesc.Texture2D.MipLevels = cylinder->_resource->GetDesc().MipLevels;
-	_device->Get()->CreateShaderResourceView(cylinder->_resource.Get(), &srvDesc, _srvHeap->GetCPUStart(2u));
-
-	srvDesc.Format = sphere->_resource->GetDesc().Format;
-	srvDesc.Texture2D.MipLevels = sphere->_resource->GetDesc().MipLevels;
-	_device->Get()->CreateShaderResourceView(sphere->_resource.Get(), &srvDesc, _srvHeap->GetCPUStart(3u));
-
-	srvDesc.Format = lightSphere->_resource->GetDesc().Format;
-	srvDesc.Texture2D.MipLevels = lightSphere->_resource->GetDesc().MipLevels;
-	_device->Get()->CreateShaderResourceView(lightSphere->_resource.Get(), &srvDesc, _srvHeap->GetCPUStart(4u));
-
 	_geoLib.AddTexture(box->_name, std::move(box));
 	_geoLib.AddTexture(grid->_name, std::move(grid));
 	_geoLib.AddTexture(cylinder->_name, std::move(cylinder));
 	_geoLib.AddTexture(sphere->_name, std::move(sphere));
 	_geoLib.AddTexture(lightSphere->_name, std::move(lightSphere));
 
-	if (!GeometryGenerator::s_lastDiffusePath.empty()) {
-		auto mdlTex = std::make_unique<Texture>(_device->Get(), *_cmdList,
-			"model_diffuse", GeometryGenerator::s_lastDiffusePath, true);
-
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-		srvDesc.Format = mdlTex->_resource->GetDesc().Format;
-		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srvDesc.Texture2D.MipLevels = mdlTex->_resource->GetDesc().MipLevels;
-
-		// Overwrite SRV slot #4 (used by lightSphere earlier). Inconvenient but minimal change.
-		_device->Get()->CreateShaderResourceView(mdlTex->_resource.Get(), &srvDesc, _srvHeap->GetCPUStart(5u));
-
-		_geoLib.AddTexture("model_diffuse", std::move(mdlTex));
+	const auto& modelPaths = _geoLib.GetModelTexturePaths();
+	for (size_t i = 0; i < modelPaths.size(); i++)
+	{
+		auto modelTex = std::make_unique<Texture>(_device->Get(), *_cmdList, "model_diffuse0", modelPaths[i], true);
+		_geoLib.AddTexture(modelTex->_name, std::move(modelTex));
 	}
+
+	_srvHeap = std::move(_geoLib.BuildSrvHeap(_device->Get()));
 }
 
 void D3DRenderer::BuildScene()
@@ -409,39 +378,39 @@ void D3DRenderer::BuildScene()
 
 	// Object
 	XMMATRIX worldMat = XMMatrixRotationY(3.f*XM_PI/2.f) * XMMatrixScaling(1, 1, 1) * XMMatrixTranslation(0.f, 3.f, -12.f);
-	_scene.AddInstance("duck", "modelMat", d3dUtil::MatToFloat4x4(worldMat));
+	_scene.AddInstance("truck", "modelMat1", d3dUtil::MatToFloat4x4(worldMat));
 
 	// Shadow of the Object
-	_scene.AddInstance("duck", "shadowMat", d3dUtil::MatToFloat4x4(worldMat * S1 * shadowOffsetY), { ItemType::Shadow });
+	_scene.AddInstance("truck", "shadowMat", d3dUtil::MatToFloat4x4(worldMat * S1 * shadowOffsetY), { ItemType::Shadow });
 
 	// Reflection	
-	_scene.AddInstance("duck", "modelMat", d3dUtil::MatToFloat4x4(worldMat * R), { ItemType::Reflected });
+	_scene.AddInstance("truck", "modelMat1", d3dUtil::MatToFloat4x4(worldMat * R), { ItemType::Reflected });
 
 	// Shadow of the reflection
 	const auto shadowWorld = (worldMat * R) * S2 * shadowOffsetY;
-	_scene.AddInstance("duck", "shadowMat", d3dUtil::MatToFloat4x4(shadowWorld), { ItemType::ReflectedShadow });
+	_scene.AddInstance("truck", "shadowMat", d3dUtil::MatToFloat4x4(shadowWorld), { ItemType::ReflectedShadow });
 
-	//const float rad = 8.f;
-	//for (float theta = 0; theta < 2.f * d3dUtil::PI; theta += (d3dUtil::PI / 3.f))
-	//{
-	//	XMMATRIX cylinderWorld = XMMatrixTranslation(rad * cosf(theta), 1.5f, rad * sinf(theta)) * XMMatrixTranslation(0.f, 0.f, -12.f);
-	//	_scene.AddInstance("cylinder", "cylinderMat", d3dUtil::MatToFloat4x4(cylinderWorld));
+	const float rad = 8.f;
+	for (float theta = 0; theta < 2.f * d3dUtil::PI; theta += (d3dUtil::PI / 3.f))
+	{
+		XMMATRIX cylinderWorld = XMMatrixTranslation(rad * cosf(theta), 1.5f, rad * sinf(theta)) * XMMatrixTranslation(0.f, 0.f, -12.f);
+		_scene.AddInstance("cylinder", "cylinderMat", d3dUtil::MatToFloat4x4(cylinderWorld));
 
-	//	_scene.AddInstance("cylinder", "shadowMat", d3dUtil::MatToFloat4x4(cylinderWorld * S1 * shadowOffsetY), { ItemType::Shadow });
-	//	_scene.AddInstance("cylinder", "cylinderMat", d3dUtil::MatToFloat4x4(cylinderWorld * R), { ItemType::Reflected });
+		_scene.AddInstance("cylinder", "shadowMat", d3dUtil::MatToFloat4x4(cylinderWorld * S1 * shadowOffsetY), { ItemType::Shadow });
+		_scene.AddInstance("cylinder", "cylinderMat", d3dUtil::MatToFloat4x4(cylinderWorld * R), { ItemType::Reflected });
 
-	//	auto shadowWorld = (cylinderWorld * R) * S2 * shadowOffsetY;
-	//	_scene.AddInstance("cylinder", "shadowMat", d3dUtil::MatToFloat4x4(shadowWorld), { ItemType::ReflectedShadow });
+		auto shadowWorld = (cylinderWorld * R) * S2 * shadowOffsetY;
+		_scene.AddInstance("cylinder", "shadowMat", d3dUtil::MatToFloat4x4(shadowWorld), { ItemType::ReflectedShadow });
 
-	//	XMMATRIX sphereWorld = XMMatrixTranslation(rad * cosf(theta), 3.5f, rad * sinf(theta)) * XMMatrixTranslation(0.f, 0.f, -12.f);
-	//	_scene.AddInstance("sphere", "sphereMat", d3dUtil::MatToFloat4x4(sphereWorld), { ItemType::Transparent });
+		XMMATRIX sphereWorld = XMMatrixRotationY(theta) * XMMatrixTranslation(rad * cosf(theta), 3.5f, rad * sinf(theta)) * XMMatrixTranslation(0.f, 0.f, -12.f);
+		_scene.AddInstance("duck", "modelMat0", d3dUtil::MatToFloat4x4(sphereWorld));
 
-	//	_scene.AddInstance("sphere", "shadowMat", d3dUtil::MatToFloat4x4(sphereWorld * S1 * shadowOffsetY), { ItemType::Shadow });
-	//	_scene.AddInstance("sphere", "sphereMat", d3dUtil::MatToFloat4x4(sphereWorld * R), { ItemType::Reflected });
-	//	
-	//	shadowWorld = (sphereWorld * R) * S2 * shadowOffsetY;
-	//	_scene.AddInstance("sphere", "shadowMat", d3dUtil::MatToFloat4x4(shadowWorld), { ItemType::ReflectedShadow });
-	//}
+		_scene.AddInstance("duck", "shadowMat", d3dUtil::MatToFloat4x4(sphereWorld * S1 * shadowOffsetY), { ItemType::Shadow });
+		_scene.AddInstance("duck", "modelMat0", d3dUtil::MatToFloat4x4(sphereWorld * R), { ItemType::Reflected });
+		
+		shadowWorld = (sphereWorld * R) * S2 * shadowOffsetY;
+		_scene.AddInstance("duck", "shadowMat", d3dUtil::MatToFloat4x4(shadowWorld), { ItemType::ReflectedShadow });
+	}
 
 	_scene.BuildRenderItems(_geoLib);
 }
