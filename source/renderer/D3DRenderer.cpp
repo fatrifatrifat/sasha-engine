@@ -137,7 +137,7 @@ void D3DRenderer::BuildGeometry()
 	auto cylinder = g.CreateCylinder(0.7f, 0.5f, 4.2f, 10, 10);
 	auto grid = g.CreateGrid(160.f, 160.f, 100, 100);
 	auto skull = g.ReadFile("skull.txt");
-	//g.LoadMeshWithAssimp(_geoLib, "dragon", "dragon/dragon.obj");
+	g.LoadMeshWithAssimp(_geoLib, "dragon", "dragon/dragon.obj");
 	g.LoadMeshWithAssimp(_geoLib, "duck", "duck/Duck.gltf");
 	g.LoadMeshWithAssimp(_geoLib, "truck", "milktruck/CesiumMilkTruck.gltf");
 	g.LoadMeshWithAssimp(_geoLib, "scifi_helmet", "scifi_helmet/SciFiHelmet.gltf");
@@ -224,7 +224,7 @@ void D3DRenderer::BuildMaterial()
 	auto skullMat = std::make_unique<Material>();
 	skullMat->name = "skullMat";
 
-	skullMat->_matProperties._diffuseAlbedo = { 0.22f, 0.70f, 0.50f, 1.f };
+	skullMat->_matProperties._diffuseAlbedo = { 0.22f, 0.70f, 0.50f, 0.6f };
 	{
 		constexpr float ior = 1.5f;
 		const float r0 = ((ior - 1.0f) / (ior + 1.0f)) * ((ior - 1.0f) / (ior + 1.0f));
@@ -377,39 +377,39 @@ void D3DRenderer::BuildScene()
 	_scene.AddInstance("mirror", "lightSphereMat", d3dUtil::Identity4x4(), {ItemType::Mirror, ItemType::Transparent});
 
 	// Object
-	XMMATRIX worldMat = XMMatrixRotationY(3.f*XM_PI/2.f) * XMMatrixScaling(1, 1, 1) * XMMatrixTranslation(0.f, 3.f, -12.f);
-	_scene.AddInstance("truck", "modelMat1", d3dUtil::MatToFloat4x4(worldMat));
+	XMMATRIX worldMat = XMMatrixRotationY(XM_PI) * XMMatrixScaling(1, 1, 1) * XMMatrixTranslation(0.f, 3.f, -12.f);
+	_scene.AddInstance("scifi_helmet", "modelMat1", d3dUtil::MatToFloat4x4(worldMat));
 
 	// Shadow of the Object
-	_scene.AddInstance("truck", "shadowMat", d3dUtil::MatToFloat4x4(worldMat * S1 * shadowOffsetY), { ItemType::Shadow });
+	_scene.AddInstance("scifi_helmet", "shadowMat", d3dUtil::MatToFloat4x4(worldMat * S1 * shadowOffsetY), { ItemType::Shadow });
 
 	// Reflection	
-	_scene.AddInstance("truck", "modelMat1", d3dUtil::MatToFloat4x4(worldMat * R), { ItemType::Reflected });
+	_scene.AddInstance("scifi_helmet", "modelMat1", d3dUtil::MatToFloat4x4(worldMat * R), { ItemType::Reflected });
 
 	// Shadow of the reflection
 	const auto shadowWorld = (worldMat * R) * S2 * shadowOffsetY;
-	_scene.AddInstance("truck", "shadowMat", d3dUtil::MatToFloat4x4(shadowWorld), { ItemType::ReflectedShadow });
+	_scene.AddInstance("scifi_helmet", "shadowMat", d3dUtil::MatToFloat4x4(shadowWorld), { ItemType::ReflectedShadow });
 
 	const float rad = 8.f;
 	for (float theta = 0; theta < 2.f * d3dUtil::PI; theta += (d3dUtil::PI / 3.f))
 	{
-		XMMATRIX cylinderWorld = XMMatrixTranslation(rad * cosf(theta), 1.5f, rad * sinf(theta)) * XMMatrixTranslation(0.f, 0.f, -12.f);
-		_scene.AddInstance("cylinder", "cylinderMat", d3dUtil::MatToFloat4x4(cylinderWorld));
+		//XMMATRIX cylinderWorld = XMMatrixTranslation(rad * cosf(theta), 1.5f, rad * sinf(theta)) * XMMatrixTranslation(0.f, 0.f, -12.f);
+		//_scene.AddInstance("cylinder", "cylinderMat", d3dUtil::MatToFloat4x4(cylinderWorld));
 
-		_scene.AddInstance("cylinder", "shadowMat", d3dUtil::MatToFloat4x4(cylinderWorld * S1 * shadowOffsetY), { ItemType::Shadow });
-		_scene.AddInstance("cylinder", "cylinderMat", d3dUtil::MatToFloat4x4(cylinderWorld * R), { ItemType::Reflected });
+		//_scene.AddInstance("cylinder", "shadowMat", d3dUtil::MatToFloat4x4(cylinderWorld * S1 * shadowOffsetY), { ItemType::Shadow });
+		//_scene.AddInstance("cylinder", "cylinderMat", d3dUtil::MatToFloat4x4(cylinderWorld * R), { ItemType::Reflected });
 
-		auto shadowWorld = (cylinderWorld * R) * S2 * shadowOffsetY;
-		_scene.AddInstance("cylinder", "shadowMat", d3dUtil::MatToFloat4x4(shadowWorld), { ItemType::ReflectedShadow });
+		//auto shadowWorld = (cylinderWorld * R) * S2 * shadowOffsetY;
+		//_scene.AddInstance("cylinder", "shadowMat", d3dUtil::MatToFloat4x4(shadowWorld), { ItemType::ReflectedShadow });
 
-		XMMATRIX sphereWorld = XMMatrixRotationY(theta) * XMMatrixTranslation(rad * cosf(theta), 3.5f, rad * sinf(theta)) * XMMatrixTranslation(0.f, 0.f, -12.f);
-		_scene.AddInstance("duck", "modelMat0", d3dUtil::MatToFloat4x4(sphereWorld));
+		XMMATRIX sphereWorld = XMMatrixScaling(3.f, 3.f, 3.f) * XMMatrixTranslation(rad * cosf(theta), 1.f, rad * sinf(theta)) * XMMatrixTranslation(0.f, 0.f, -12.f);
+		_scene.AddInstance("dragon", "skullMat", d3dUtil::MatToFloat4x4(sphereWorld), { ItemType::Transparent });
 
-		_scene.AddInstance("duck", "shadowMat", d3dUtil::MatToFloat4x4(sphereWorld * S1 * shadowOffsetY), { ItemType::Shadow });
-		_scene.AddInstance("duck", "modelMat0", d3dUtil::MatToFloat4x4(sphereWorld * R), { ItemType::Reflected });
+		_scene.AddInstance("dragon", "shadowMat", d3dUtil::MatToFloat4x4(sphereWorld * S1 * shadowOffsetY), { ItemType::Shadow });
+		_scene.AddInstance("dragon", "skullMat", d3dUtil::MatToFloat4x4(sphereWorld * R), { ItemType::Reflected, ItemType::Transparent });
 		
-		shadowWorld = (sphereWorld * R) * S2 * shadowOffsetY;
-		_scene.AddInstance("duck", "shadowMat", d3dUtil::MatToFloat4x4(shadowWorld), { ItemType::ReflectedShadow });
+		auto shadowWorld = (sphereWorld * R) * S2 * shadowOffsetY;
+		_scene.AddInstance("dragon", "shadowMat", d3dUtil::MatToFloat4x4(shadowWorld), { ItemType::ReflectedShadow });
 	}
 
 	_scene.BuildRenderItems(_geoLib);
@@ -898,14 +898,18 @@ void D3DRenderer::UpdatePassCB(const Timer& t)
 	_mainPassCB.FogStart = 0.f;
 	_mainPassCB.FogRange = 50.f;
 
+	int i = 0;
+	for (; i < _scene.GetLights().size(); i++)
+		_mainPassCB.Lights[i] = _scene.GetLights().at(i);
+
 	// Direction Light
-	/*XMVECTOR lightDir = -DirectX::XMVectorSet(
+	XMVECTOR lightDir = -DirectX::XMVectorSet(
 		1.f * sinf(_lightPhi) * cosf(_lightTheta),
 		1.f * cosf(_lightPhi),
 		1.f * sinf(_lightPhi) * sinf(_lightTheta),
 		1.0f);
-	XMStoreFloat3(&_mainPassCB.Lights[0].Direction, lightDir);
-	_mainPassCB.Lights[0].Strength = { 1.0f, 0.9f, 0.7f};*/
+	XMStoreFloat3(&_mainPassCB.Lights[1].Direction, lightDir);
+	_mainPassCB.Lights[1].Strength = { 1.0f, 0.9f, 0.7f};
 
 	// Point Light
 	/*_mainPassCB.Lights[0].Strength = { 1.0f, 0.85f, 0.6f };
@@ -925,10 +929,6 @@ void D3DRenderer::UpdatePassCB(const Timer& t)
 		_mainPassCB.Lights[i].SpotPower = 32.0f;
 	}*/
 
-	int i = 0;
-	for (; i < _scene.GetLights().size(); i++)
-		_mainPassCB.Lights[i] = _scene.GetLights().at(i);
-
 	/*XMVECTOR lightDir = -DirectX::XMVectorSet(
 		1.f * sinf(_lightPhi) * cosf(_lightTheta),
 		1.f * cosf(_lightPhi),
@@ -939,7 +939,7 @@ void D3DRenderer::UpdatePassCB(const Timer& t)
 	_mainPassCB.Lights[i].FalloffStart = 2.0f;
 	_mainPassCB.Lights[i].FalloffEnd = 1000.0f;
 	_mainPassCB.Lights[i].Position = { 0.f, 15.f, 0.f };
-	_mainPassCB.Lights[i].SpotPower = 8.0f;*/
+	_mainPassCB.Lights[i].SpotPower = 8.0f};*/
 
 	_currFrameResource->_pass->CopyData(0, _mainPassCB);
 

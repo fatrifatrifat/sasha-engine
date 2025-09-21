@@ -27,6 +27,7 @@ void Scene::BuildRenderItems(GeometryLibrary& geoLib)
 		ri->_materialId = material;
 
 		ri->_world = inst.transform;
+		ri->_types = inst.type;
 		
 		for (auto& type : inst.type)
 		{

@@ -16,6 +16,8 @@ private:
 
 	UINT _cbObjIndex = -1;
 
+	std::vector<ItemType> _types;
+
 	SubMeshID _submeshId = -1;
 	MaterialID _materialId = -1;
 
