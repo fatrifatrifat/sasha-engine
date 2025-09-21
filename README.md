@@ -9,6 +9,12 @@ Sasha Engine is a personal project designed to deepen my understanding of **Dire
 - Scene Management: Includes basic scene rendering with objects, textures, and materials.
 - Modular Architecture: The engine is divided into distinct modules (core, renderer, input, utility) to ensure maintainability and scalability.
 
+## Preview
+
+Here’s a snapshot of the engine rendering a basic scene:  
+
+![Scene Preview](docs/images/scene1.png)
+
 ## Development Goals
 
 This project aims to cover a variety of graphics techniques including:
